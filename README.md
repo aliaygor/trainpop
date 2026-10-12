@@ -10,11 +10,15 @@ Open this repository in Android Studio. Android SDK 36 and JDK 17+ are required.
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-## Version 0.2
+## Version 0.3
 
+- Single axio / LET’S PLAY intro; the clipped duplicate Android launch logo is removed.
+- Stable passenger positions and cached robot sprites avoid reindexing jumps during boarding.
+- Integrated booster cards apply actions immediately; empty inventory can be refilled through rewarded test ads.
+- Reward-ad loading waits visibly and opens automatically, with a timeout and failure feedback.
 - Illustrated station, icon menu buttons, conductor greetings, two-second wheel tease, actionable notification badges.
 - Directional one/two-cell trains in a six-by-six depot; four reserved platforms and three unlockable ones.
-- Continuous departure/arrival routes, FIFO robot boarding with capacity counters, platform deadlocks and recovery.
+- Continuous departure/arrival routes, continuous robot circulation with gate-based color boarding and capacity counters, platform deadlocks and recovery.
 - Deterministic level generation with known solutions; tests solve 200 levels without spending or boosters.
 - VIP bypass, queue arrangement and color shuffle with conserved passenger demand.
 - Seven-day reward cycle, five-step supply, animated six-prize wheel with one free daily spin and nine optional ad spins.
@@ -46,5 +50,5 @@ Debug ads always use Google's official rewarded test unit. Rewards only apply in
 
 ## Remaining polish
 
-Gameplay objects currently use shaded 2D drawings and 3D-looking raster sprites, not real 3D models. The current FIFO boarding rule is inferred from still images and needs comparison with the reference in motion. Production 3D assets, more complex level mechanics, device performance profiling, accessible native UI semantics and Play release setup remain ahead. Purchases and live rewarded ads are not ready for public release.
+Gameplay objects currently use shaded 2D drawings and 3D-looking raster sprites, not real 3D models. The conveyor holds up to 64 robots, with incoming overflow lanes; unmatched robots keep circling. Only matching robots crossing the gate board. Production 3D assets, more complex level mechanics, device performance profiling, accessible native UI semantics and Play release setup remain ahead. Purchases and live rewarded ads are not ready for public release.
 

@@ -16,5 +16,10 @@ class EconomyTest {
     @Test fun spinSurvivesRestartAndCannotPayTwice() { val l=MemoryLedger();val a=Economy(l);assertTrue(a.beginSpin("a",4));assertFalse(a.beginSpin("a",1));val b=Economy(l);assertEquals(Reward(500),b.finishSpin());assertEquals(700,b.coins);assertNull(b.finishSpin());assertEquals(0,b.spins("a")) }
     @Test fun adSpinLimitResetsAcrossDays() { val e=Economy(MemoryLedger());repeat(9){assertTrue(e.grantSpin("a"))};assertFalse(e.grantSpin("a"));assertEquals(10,e.spins("a"));assertTrue(e.beginSpin("b",0));e.finishSpin();assertEquals(9,e.adSpinsLeft("b"));assertTrue(e.grantSpin("b")) }
     @Test fun unsuccessfulActionsDoNotCharge() { val e=Economy(MemoryLedger());assertFalse(e.consume("vip"){false});assertEquals(2,e.inventory("vip"));assertFalse(e.spend(900){true});assertFalse(e.spend(50){false});assertEquals(200,e.coins) }
+    @Test fun adBoosterRefillPersistsAndOnlyChangesSelectedInventory() {
+        val ledger=MemoryLedger();val e=Economy(ledger);repeat(2) { assertTrue(e.consume("vip") { true }) }
+        assertEquals(0,e.inventory("vip"));e.grantAdBooster("vip")
+        val restored=Economy(ledger);assertEquals(1,restored.inventory("vip"));assertEquals(2,restored.inventory("shuffle"));assertEquals(200,restored.coins)
+    }
     @Test fun winsAndReceiptsAreIdempotent() { val e=Economy(MemoryLedger());assertTrue(e.win(1));assertFalse(e.win(1));assertEquals(250,e.coins);assertTrue(e.grantPurchase("starter_pack","receipt"));assertFalse(e.grantPurchase("starter_pack","receipt"));assertEquals(1250,e.coins);assertTrue(e.starterOwned);assertFalse(e.grantPurchase("unknown","other"));assertTrue(e.grantPurchase("remove_ads","ads"));assertTrue(e.noAds) }
 }

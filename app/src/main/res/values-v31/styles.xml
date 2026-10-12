@@ -6,7 +6,7 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:navigationBarColor">#152957</item>
         <item name="android:windowSplashScreenBackground">#152957</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/axio</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
         <item name="android:windowSplashScreenAnimationDuration">300</item>
     </style>
 </resources>

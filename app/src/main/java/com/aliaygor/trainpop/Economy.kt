@@ -35,6 +35,7 @@ class Economy(private val store: Ledger) {
         if (expectedStep !in 1..4 || supplyStep(day) != expectedStep) return null
         val r = Reward(values[expectedStep]); store.write(amounts(r) + ("supply.step" to expectedStep + 1), mapOf("supply.date" to day)); return r
     }
+    fun grantAdBooster(key: String) { require(key in listOf("vip","arrange","shuffle")); store.write(mapOf(key to inventory(key)+1)) }
     fun grantAdCoins(): Reward { val r = Reward(50); store.write(amounts(r)); return r }
     fun grantSpin(day: String): Boolean {
         val used = if (store.string("wheel.date") == day) store.int("wheel.adCount") else 0

@@ -46,7 +46,17 @@ class Art {
         label(c,"$",0f,7f,22f,0xFFFFF4A5.toInt());c.restore()
     }
     fun coinPile(c:Canvas,x:Float,y:Float,size:Float=1f) { c.save();c.translate(x,y);c.scale(size,size); for(i in 0..2) for(j in 0..(2-i/2)) coin(c,(i-1)*21f,j*-9f-i*4f,.75f);c.restore() }
+    private val robotSprites=mutableMapOf<Int,Bitmap>()
+    fun release() { robotSprites.values.forEach { it.recycle() };robotSprites.clear() }
     fun robot(c:Canvas,x:Float,y:Float,color:Int,size:Float=1f,pose:Float=0f,conductor:Boolean=false) {
+        if(pose!=0f || conductor) { paintRobot(c,x,y,color,size,pose,conductor);return }
+        val sprite=robotSprites.getOrPut(color) {
+            Bitmap.createBitmap(120,180,Bitmap.Config.ARGB_8888).also { paintRobot(Canvas(it),60f,120f,color,2f) }
+        }
+        p.shader=null;p.colorFilter=null;p.alpha=255;p.isFilterBitmap=true
+        c.drawBitmap(sprite,null,RectF(x-30f*size,y-60f*size,x+30f*size,y+30f*size),p)
+    }
+    private fun paintRobot(c:Canvas,x:Float,y:Float,color:Int,size:Float=1f,pose:Float=0f,conductor:Boolean=false) {
         c.save();c.translate(x,y);c.scale(size,size)
         p.color=0x26000000;c.drawOval(-14f,12f,14f,18f,p)
         box(c,-9f,8f,7f,7f,ink,3f);box(c,3f,8f,7f,7f,ink,3f)

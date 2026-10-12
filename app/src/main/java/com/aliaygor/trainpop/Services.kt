@@ -36,6 +36,11 @@ class Audio(private val activity: Activity) {
 class RewardAds(private val activity:Activity,private val status:(String)->Unit) {
     private var ad:RewardedAd?=null
     private var loading=false
+    private var pending:(()->Unit)?=null
+    private val handler=android.os.Handler(android.os.Looper.getMainLooper())
+    val preparing get()=pending!=null
+    private val timeout=Runnable { if(pending!=null) { pending=null;showing=false;status("Reklam yüklenemedi. Tekrar deneyebilirsin.") } }
+    fun release() { pending=null;handler.removeCallbacks(timeout) }
     var showing=false;private set
     private val unit = if(BuildConfig.DEBUG) "ca-app-pub-3940256099942544/5224354917" else BuildConfig.REWARDED_AD_ID
     init { if(BuildConfig.DEBUG) MobileAds.initialize(activity) { activity.runOnUiThread { load() } } }
@@ -43,8 +48,8 @@ class RewardAds(private val activity:Activity,private val status:(String)->Unit)
         if(unit.isEmpty() || loading || !BuildConfig.DEBUG) return // Release awaits consent configuration.
         loading=true
         RewardedAd.load(activity,unit,AdRequest.Builder().build(),object:RewardedAdLoadCallback() {
-            override fun onAdLoaded(value:RewardedAd) { loading=false;ad=value }
-            override fun onAdFailedToLoad(error:LoadAdError) { loading=false;ad=null }
+            override fun onAdLoaded(value:RewardedAd) { loading=false;ad=value;pending?.let { pending=null;showing=false;handler.removeCallbacks(timeout);show(it) } }
+            override fun onAdFailedToLoad(error:LoadAdError) { loading=false;ad=null;if(pending!=null) { pending=null;showing=false;handler.removeCallbacks(timeout);status("Reklam yüklenemedi; haklarýn korunuyor.") } }
         })
     }
     fun show(reward:()->Unit) {
