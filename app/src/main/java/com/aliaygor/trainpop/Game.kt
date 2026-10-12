@@ -83,17 +83,17 @@ class Game(val level: Int) {
         if (completed || failed) return
         elapsed += dt
         boarding.forEach { it.age += dt }; boarding.removeAll { it.age > .5f }
-        departing.forEach { it.progress += dt / .7f }; departing.removeAll { it.progress >= 1f }
+        departing.forEach { it.progress += dt / .95f }; departing.removeAll { it.progress >= 1f }
         platforms.filterNotNull().forEach { t ->
             if (t.phase == TrainPhase.ARRIVING) {
-                t.progress = (t.progress + dt / .85f).coerceAtMost(1f)
+                t.progress = (t.progress + dt / 1.05f).coerceAtMost(1f)
                 if (t.progress >= 1f) t.phase = TrainPhase.PARKED
             }
         }
         if(passengers.size != robots.size) resetFlow()
         val removed = mutableListOf<Passenger>()
         passengers.filter { it.phase >= 0f }.forEach { robot ->
-            robot.phase += dt * .18f
+            robot.phase += dt * .05f
             if(robot.phase >= 1f) {
                 robot.phase -= 1f
                 val t = platforms.filterNotNull().firstOrNull { it.phase == TrainPhase.PARKED && it.color == robot.color }

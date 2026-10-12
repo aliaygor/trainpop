@@ -7,7 +7,7 @@ class GameTest {
         for(level in 1..200) {
             val g=Game(level);assertTrue(g.yard.size>=8)
             val cells=g.yard.flatMap { it.cells() };assertEquals(cells.size,cells.toSet().size)
-            for(id in g.solution) { assertEquals("Level $level train $id",Result.MOVED,g.dispatch(id));advance(g,12f);assertFalse(g.failed) }
+            for(id in g.solution) { assertEquals("Level $level train $id",Result.MOVED,g.dispatch(id));advance(g,24f);assertFalse(g.failed) }
             advance(g,2f);assertTrue("Level $level",g.completed);assertEquals(g.total,g.boarded)
         }
     }
@@ -27,7 +27,7 @@ class GameTest {
     @Test fun matchingFullPlatformsKeepBoarding() {
         val g=Game(1);g.yard.clear();g.robots.clear();g.robots+=List(16){0}
         for(i in 0..3) g.yard+=Train(i,i,0,0,Direction.DOWN,1,4)
-        repeat(4){g.dispatch(it)};advance(g,8f);assertFalse(g.failed);assertTrue(g.completed)
+        repeat(4){g.dispatch(it)};advance(g,15f);assertFalse(g.failed);assertTrue(g.completed)
     }
     @Test fun fullDispatchDoesNotLoseVehicle() {
         val g=Game(1);g.yard.clear();for(i in 0..4) g.yard+=Train(i,i,0,1,Direction.DOWN,1,4)
@@ -36,7 +36,7 @@ class GameTest {
     @Test fun boostersConservePassengerDemand() {
         val g=Game(12)
         fun checkDemand() { assertEquals(g.yard.sumOf { it.remaining }+g.platforms.filterNotNull().sumOf { it.remaining },g.robots.size);assertEquals(g.total,g.boarded+g.robots.size) }
-        g.dispatch(g.solution.first());advance(g,.9f);checkDemand();assertTrue(g.arrange());checkDemand();assertTrue(g.shuffle());checkDemand();assertTrue(g.rescue());checkDemand();if(g.vip()) checkDemand()
+        g.dispatch(g.solution.first());advance(g,1.1f);checkDemand();assertTrue(g.arrange());checkDemand();assertTrue(g.shuffle());checkDemand();assertTrue(g.rescue());checkDemand();if(g.vip()) checkDemand()
     }
     @Test fun unmatchedRobotsCirculateWithoutChangingIdentity() {
         val g=Game(2);val robot=g.passengers.first();val phase=robot.phase

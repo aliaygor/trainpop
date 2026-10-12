@@ -10,9 +10,11 @@ Open this repository in Android Studio. Android SDK 36 and JDK 17+ are required.
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-## Version 0.3
+## Version 0.4
 
 - Single axio / LET’S PLAY intro; the clipped duplicate Android launch logo is removed.
+- Matched six-color locomotive and carriage sprites with natural proportions and clear roof arrows.
+- Twenty-second robot laps, arc-length movement through bends, and a smooth incoming merge transition.
 - Stable passenger positions and cached robot sprites avoid reindexing jumps during boarding.
 - Integrated booster cards apply actions immediately; empty inventory can be refilled through rewarded test ads.
 - Reward-ad loading waits visibly and opens automatically, with a timeout and failure feedback.
@@ -46,7 +48,7 @@ Debug ads always use Google's official rewarded test unit. Rewards only apply in
 
 ## Art and audio
 
-`station.webp`, `conductor.webp` and `locomotive.webp` in `app/src/main/res/drawable-nodpi` are original assets generated with the built-in imagegen tool. Prompts are preserved in `docs/ART.md`. Locomotive colors use luminance-preserving palette tinting. Robot and UI primitives are drawn in `Art.kt`; no reference game's art is copied. WAV sounds are locally synthesized and original.
+`station.webp`, `conductor.webp` and `locomotive.webp` in `app/src/main/res/drawable-nodpi` are original assets generated with the built-in imagegen tool. Prompts are preserved in `docs/ART.md`. Gameplay trains use individually rendered palette sprites; long trains couple a separate matching carriage without stretching the engine image. New prompts are in `docs/ART-0.4.md`. Robot and UI primitives are drawn in `Art.kt`; no reference game's art is copied. WAV sounds are locally synthesized and original.
 
 ## Remaining polish
 

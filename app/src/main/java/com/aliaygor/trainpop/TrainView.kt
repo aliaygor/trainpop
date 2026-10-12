@@ -16,13 +16,16 @@ class TrainView(private val activity:Activity):View(activity) {
     private val store=Store(activity,economy) { notice(it) }
     private val station=BitmapFactory.decodeResource(resources,R.drawable.station)
     private val conductor=BitmapFactory.decodeResource(resources,R.drawable.conductor)
-    private val locomotive=BitmapFactory.decodeResource(resources,R.drawable.locomotive)
+    private val trainSprites=listOf(R.drawable.train_blue,R.drawable.train_yellow,R.drawable.train_pink,R.drawable.train_purple,R.drawable.train_green,R.drawable.train_orange).map { BitmapFactory.decodeResource(resources,it) }
+    private val wagonSprites=listOf(R.drawable.wagon_blue,R.drawable.wagon_yellow,R.drawable.wagon_pink,R.drawable.wagon_purple,R.drawable.wagon_green,R.drawable.wagon_orange).map { BitmapFactory.decodeResource(resources,it) }
     private var game=Game.restore(prefs.getString("session","") ?: "")?.takeIf { it.level==economy.level } ?: Game(economy.level)
     private var screen="splash"
     private var modal=""
     private var time=0f
     private var last=0L
-    private var frameDelta=0f
+    private var flowDelta=0f
+    private data class Merge(val start:PointF,var age:Float=0f)
+    private val merges=java.util.IdentityHashMap<Passenger,Merge>()
     private var active=true
     private var scale=1f
     private var ox=0f
@@ -56,12 +59,12 @@ class TrainView(private val activity:Activity):View(activity) {
         isFocusable=true;contentDescription="Train Pop"
         economy.finishSpin()?.let { reward=it;rewardReturn="wheel";modal="reward" }
         audio.effects=effects
-        art.locomotive=locomotive
+        art.trainSprites=trainSprites;art.wagonSprites=wagonSprites
     }
     private fun day()=java.text.SimpleDateFormat("yyyy-MM-dd",java.util.Locale.US).format(java.util.Date())
     fun pause() { active=false;last=0;audio.music(false);if(screen=="game" && !game.completed) prefs.edit().putString("session",game.checkpoint()).apply() }
     fun resume() { active=true;last=0;audio.music(music);invalidate();store.restore(false) }
-    fun release() { ads.release();art.release();audio.release();store.release();station.recycle();conductor.recycle();locomotive.recycle() }
+    fun release() { ads.release();art.release();audio.release();store.release();station.recycle();conductor.recycle();trainSprites.forEach { it.recycle() };wagonSprites.forEach { it.recycle() } }
     fun back() {
         if(spinAge>=0 || ads.showing) return
         when { modal.startsWith("purchase:") -> modal="shop"; modal=="reward"->modal=rewardReturn;modal=="full" -> Unit; modal.isNotEmpty()->modal=""; screen=="game"->modal="leave";else->activity.finish() }
@@ -69,7 +72,7 @@ class TrainView(private val activity:Activity):View(activity) {
     }
     private fun notice(s:String) { activity.runOnUiThread { toast=s;toastUntil=time+3f;invalidate() } }
     private fun open(name:String) { modal=name;shopScroll=0f;pressed=null }
-    private fun start(fresh:Boolean=true) { if(fresh || game.level!=economy.level || game.completed) game=Game(economy.level);screen="game";modal=if(game.failed) "full" else "";hintId=-1;lastBoarded=game.boarded;waitingY.clear() }
+    private fun start(fresh:Boolean=true) { if(fresh || game.level!=economy.level || game.completed) game=Game(economy.level);screen="game";modal=if(game.failed) "full" else "";hintId=-1;lastBoarded=game.boarded;waitingY.clear();merges.clear() }
     private fun showReward(r:Reward?) { if(r!=null) { reward=r;rewardReturn=if(modal in setOf("wheel","daily","supply","shop","gold")) modal else "";modal="reward";audio.play("win") } else notice("Bu ödül zaten alındı.") }
     private fun haptic() { if(vibration) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }
     private fun hit(x:Float,y:Float,w:Float,h:Float,id:String,action:()->Unit) { hits+=Hit(RectF(x,y,x+w,y+h),id,action) }
@@ -91,7 +94,7 @@ class TrainView(private val activity:Activity):View(activity) {
         super.onDraw(c)
         val now=System.nanoTime();val dt=if(last==0L) 0f else ((now-last)/1e9f).coerceAtMost(.25f);last=now
         if(active) {
-            frameDelta=dt
+            flowDelta=0f
             time+=dt
             if(screen=="splash" && time>1.0f) screen="loading"
             if(screen=="loading" && time>2.1f) screen="home"
@@ -100,6 +103,7 @@ class TrainView(private val activity:Activity):View(activity) {
                 if(t==1f) { spinAge=-1f;showReward(economy.finishSpin()) }
             }
             if(screen=="game" && modal.isEmpty() && !ads.showing) {
+                flowDelta=dt
                 val prevDepart=game.departing.size
                 var remaining=dt
                 while(remaining>0f) { val step=min(.02f,remaining);game.update(step);remaining-=step }
@@ -192,16 +196,23 @@ class TrainView(private val activity:Activity):View(activity) {
         c.restore()
         c.save();c.clipRect(0f,84f,400f,326f)
         val waiting=game.passengers.filter { it.phase<0f }
-        waitingY.keys.removeAll { key -> waiting.none { it===key } }
+        waitingY.keys.removeAll { key -> game.passengers.none { it===key } };merges.keys.removeAll { key -> game.passengers.none { it===key } }
         waiting.forEachIndexed { i,robot ->
             val left=robot.lane<2;val target=205f-(i/4)*17f
             val old=waitingY[robot] ?: target
-            val yy=old+(target-old)*(1-exp(-frameDelta*9f));waitingY[robot]=yy
+            val yy=old+(target-old).coerceIn(-flowDelta*35f,flowDelta*35f);waitingY[robot]=yy
             val xx=if(left) 79f-robot.lane*12f else 345f+(robot.lane-2)*12f
             if(yy>64f) art.robot(c,xx,yy,art.colors[robot.color],.59f)
         }
         game.passengers.filter { it.phase>=0f }.sortedBy { queuePosition(it.phase,it.lane).y }.forEach { robot ->
-            val pos=queuePosition(robot.phase,robot.lane)
+            val target=queuePosition(robot.phase,robot.lane)
+            waitingY.remove(robot)?.let { yy -> merges[robot]=Merge(PointF(if(robot.lane<2) 79f-robot.lane*12f else 345f+(robot.lane-2)*12f,yy)) }
+            val transition=merges[robot]
+            val pos=if(transition!=null) {
+                transition.age+=flowDelta;val u=(transition.age/.7f).coerceIn(0f,1f);val q=u*u*(3-2*u)
+                if(u>=1f) merges.remove(robot)
+                PointF(transition.start.x+(target.x-transition.start.x)*q,transition.start.y+(target.y-transition.start.y)*q)
+            } else target
             art.robot(c,pos.x,pos.y,art.colors[robot.color],.59f)
         }
         c.restore()
@@ -222,11 +233,14 @@ class TrainView(private val activity:Activity):View(activity) {
         }
         art.line(c,0f,434f,400f,434f,Color.WHITE,4f)
         art.caption(c,"Aynı renk robotları toplamak için tren gönder",200f,455f,12f)
-        for(i in 0..6) { art.line(c,43f+i*45,469f,43f+i*45,749f,0x44A8B8CE,1f);art.line(c,43f,469f+i*45,358f,469f+i*45,0x44A8B8CE,1f) }
+        for(side in listOf(17f,383f)) {
+            art.line(c,side-3,478f,side-3,744f,0x55A5B6C9,1.3f);art.line(c,side+3,478f,side+3,744f,0x55A5B6C9,1.3f)
+            for(i in 0..17) art.line(c,side-5,482f+i*15,side+5,482f+i*15,0x44A5B6C9,2f)
+        }
         game.yard.sortedBy { it.y }.forEach { t->
             val pos=yardPosition(t);val shake=if(t.id==shakeId && time<shakeUntil) sin(time*60)*4 else 0f
             if(t.id==hintId) { art.circle(c,pos.x,pos.y,31f+(if(motion) sin(time*4)*3 else 0f),0x77FFFFFF);art.circle(c,pos.x,pos.y,27f,0x66FFDD43) }
-            art.train(c,pos.x+shake,pos.y,art.colors[t.color],if(t.length==2) 78f else 37f,27f,t.direction.angle)
+            art.train(c,pos.x+shake,pos.y,art.colors[t.color],if(t.length==2) 82f else 42f,28f,t.direction.angle)
             val horizontal=t.direction.dx!=0;val w=if(horizontal && t.length==2) 86f else 41f;val h=if(!horizontal && t.length==2) 86f else 41f
             hit(pos.x-w/2,pos.y-h/2,w,h,"train${t.id}") {
                 when(game.dispatch(t.id)) {
@@ -239,7 +253,9 @@ class TrainView(private val activity:Activity):View(activity) {
         }
         game.platforms.filterNotNull().forEach { t->
             val pos=if(t.phase==TrainPhase.ARRIVING) route(t) else PointF(slotX(t.slot),376f)
-            val angle=if(t.phase==TrainPhase.ARRIVING && t.progress<.42f) t.direction.angle else 180f
+            val turn=((t.progress-.42f)/.58f).coerceIn(0f,1f);val ease=turn*turn*(3-2*turn)
+            val difference=((180f-t.direction.angle+540f)%360f)-180f
+            val angle=if(t.phase==TrainPhase.ARRIVING) t.direction.angle+difference*ease else 180f
             art.train(c,pos.x,pos.y,art.colors[t.color],47f,27f,angle,false)
             if(t.phase==TrainPhase.PARKED) { art.box(c,pos.x-16,411f,32f,17f,art.colors[t.color],5f);art.label(c,"${t.remaining}",pos.x,424f,13f,Color.WHITE,true) }
         }
@@ -267,8 +283,8 @@ class TrainView(private val activity:Activity):View(activity) {
         else notice("Şu anda uygun tren yok; hakkın korunuyor.")
     }
     private fun queuePosition(phase:Float,lane:Int):PointF {
-        val a=PI/2+phase*PI*2;val rx=139f+(lane-1.5f)*12;val ry=86f+(lane-1.5f)*12
-        return PointF(200f+cos(a).toFloat()*rx,205f+sin(a).toFloat()*ry)
+        val point=ConveyorGeometry.position(phase,lane)
+        return PointF(point.x,point.y)
     }
     override fun onTouchEvent(e:MotionEvent):Boolean {
         val x=(e.x-ox)/scale;val y=(e.y-oy)/scale
@@ -352,7 +368,7 @@ class TrainView(private val activity:Activity):View(activity) {
         button(c,49f,y+390,142f,46f,"Ana Sayfa",art.colors[5]) { if(screen=="game") open("leave") else modal="" }
         button(c,209f,y+390,142f,46f,if(screen=="game") "Yeniden" else "Oyna") { if(screen=="game") open("restart") else start() }
         button(c,63f,y+463,274f,43f,"Satın Almaları Geri Yükle",art.colors[0]) { store.restore() }
-        art.caption(c,"AXIO • Train Pop 0.3",200f,y+555,13f)
+        art.caption(c,"AXIO • Train Pop 0.4",200f,y+555,13f)
         art.caption(c,if(BuildConfig.DEBUG) "Test reklamları etkin" else "",200f,y+581,11f)
     }
     private fun productTitle(id:String)=when(id) { "starter_pack"->"Başlangıç Paketi";"remove_ads"->"Reklamsız";"ad_free_bundle"->"Reklamsız Paket";"coins_500"->"500 Altın";else->"3.000 Altın" }

@@ -9,16 +9,8 @@ class Art {
     val colors = intArrayOf(0xFF20BDE9.toInt(), 0xFFFFCF35.toInt(), 0xFFF45387.toInt(), 0xFF9C5EEA.toInt(), 0xFF59D252.toInt(), 0xFFFF9336.toInt())
     val ink = 0xFF184665.toInt()
     val white = 0xFFFFFEF7.toInt()
-    var locomotive:Bitmap?=null
-    private val trainFilters=colors.associateWith { color->
-        // Preserve shading while using the exact passenger palette.
-        val r=Color.red(color)/255f*1.55f;val g=Color.green(color)/255f*1.55f;val b=Color.blue(color)/255f*1.55f
-        ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
-            .213f*r,.715f*r,.072f*r,0f,0f,
-            .213f*g,.715f*g,.072f*g,0f,0f,
-            .213f*b,.715f*b,.072f*b,0f,0f,
-            0f,0f,0f,1f,0f)))
-    }
+    var trainSprites:List<Bitmap> = emptyList()
+    var wagonSprites:List<Bitmap> = emptyList()
     fun shade(color: Int, f: Float) = Color.rgb((Color.red(color)*f).toInt().coerceIn(0,255), (Color.green(color)*f).toInt().coerceIn(0,255), (Color.blue(color)*f).toInt().coerceIn(0,255))
     fun box(c: Canvas, x: Float, y: Float, w: Float, h: Float, color: Int, r: Float = 16f) {
         p.shader=null; p.style=Paint.Style.FILL; p.color=color; c.drawRoundRect(x,y,x+w,y+h,r,r,p)
@@ -73,13 +65,26 @@ class Art {
     }
     /** Top-down locomotive, nose points up; long versions add a carriage. */
     fun train(c:Canvas,x:Float,y:Float,color:Int,length:Float=48f,width:Float=30f,angle:Float=0f,arrow:Boolean=true,alpha:Int=255) {
-        locomotive?.let { bitmap->
+        val index=colors.indexOf(color)
+        if(index>=0 && trainSprites.size==6) {
             c.save();c.translate(x,y);c.rotate(angle)
-            p.shader=null;p.alpha=alpha;p.isFilterBitmap=true;p.colorFilter=trainFilters[color]
-            c.drawBitmap(bitmap,Rect(145,65,750,1730),RectF(-width*.62f,-length/2,width*.62f,length/2),p)
-            p.colorFilter=null;p.alpha=255
-            if(arrow) { c.scale(width/30f,length/48f);drawArrow(c) }
-            c.restore();return
+            p.shader=null;p.colorFilter=null;p.alpha=alpha;p.isFilterBitmap=true
+            val coupled=length>60f
+            val engineHeight=if(coupled) 47f else length
+            val engineY=if(coupled) -length/2+engineHeight/2 else 0f
+            val sprite=trainSprites[index]
+            val engineWidth=min(width,engineHeight*sprite.width/sprite.height)
+            if(coupled) {
+                val wagon=wagonSprites.getOrNull(index) ?: sprite
+                val wagonY=length/2-17f
+                line(c,0f,engineY+engineHeight/2-3,0f,wagonY-14,0xFF8B98A8.toInt(),4f)
+                p.shader=null;p.alpha=alpha;p.isFilterBitmap=true
+                c.drawBitmap(wagon,null,RectF(-engineWidth/2,wagonY-16,engineWidth/2,wagonY+16),p)
+            }
+            p.shader=null;p.alpha=alpha;p.isFilterBitmap=true
+            c.drawBitmap(sprite,null,RectF(-engineWidth/2,engineY-engineHeight/2,engineWidth/2,engineY+engineHeight/2),p)
+            if(arrow) { c.save();c.translate(0f,engineY);c.scale(.88f,.88f);drawArrow(c);c.restore() }
+            p.alpha=255;c.restore();return
         }
         c.save();c.translate(x,y);c.rotate(angle);c.scale(width/30f,length/48f)
         p.alpha=alpha
