@@ -1,0 +1,8 @@
+<resources>
+    <style name="TrainPopTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#152957</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#152957</item>
+    </style>
+</resources>

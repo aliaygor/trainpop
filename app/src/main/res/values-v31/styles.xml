@@ -1,0 +1,12 @@
+<resources>
+    <style name="TrainPopTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#152957</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:navigationBarColor">#152957</item>
+        <item name="android:windowSplashScreenBackground">#152957</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/axio</item>
+        <item name="android:windowSplashScreenAnimationDuration">300</item>
+    </style>
+</resources>
