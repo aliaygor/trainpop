@@ -23,3 +23,10 @@ Source: `exec-61a6fecb-4e2e-471b-af50-a4c8892abaa1.png`. Project assets: matchin
 Final project directory: C:/Users/alica/AndroidStudioProjects/trainpop/app/src/main/res/drawable-nodpi/
 The twelve named train_*.webp and wagon_*.webp assets are saved in that directory. Generation and cleanup used the built-in imagegen tool; cell extraction retained alpha and cropped each vehicle's bounds.
 
+## Exact cleanup instruction
+
+Edit this six-vehicle sprite atlas. Preserve all six trains, exact six colors, shapes, sizes, orientation and grid positions. Remove ALL colored halos, bloom and broad background shadows. The empty space around each vehicle must have alpha zero, with clean antialiased edges. Retain only the vehicles and their compact wheel/coupler silhouettes. True transparent background, no color glow, no floor, no lettering. Keep the same premium matte toy render and identical cell layout.
+
+## Exact carriage generation instruction
+
+Production transparent sprite atlas: six matching SHORT train passenger carriages, in a strict 2 column by 3 row grid, generous transparent margins around each. Each carriage faces vertically up, orthographic exact top-down camera. Same premium softly rounded 3D plastic toy style as a casual mobile train sorting puzzle: bright matte body, gently beveled roof, soft upper-left light, compact dark side wheels, short light gray coupling tabs on BOTH ends. Each body is a rounded rectangular wagon about 1.45 times as tall as wide, one small raised rectangular roof skylight panel, no engine windshield, no headlights, no chimney. All six have identical model proportions, same scale and same camera. Colors in reading order: cyan blue, sunny yellow, coral pink, lavender purple, lime green, tangerine orange. Clean cutouts with alpha zero around vehicles. No halos, no broad shadow, no floor, no grid lines, no letters or logos, no track, no UI, no arrows, no metallic gold detail.
