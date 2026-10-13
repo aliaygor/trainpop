@@ -8,8 +8,8 @@ class ConveyorGeometryTest {
     @Test fun wrapAndMergePointsAreContinuous() {
         val before=ConveyorGeometry.position(.99999f,1);val after=ConveyorGeometry.position(0f,1)
         assertTrue(hypot(before.x-after.x,before.y-after.y)<.02f)
-        assertEquals(69.5f,ConveyorGeometry.position(.25f,1).x,.01f)
-        assertEquals(205f,ConveyorGeometry.position(.75f,2).y,.01f)
+        assertEquals(68.75f,ConveyorGeometry.position(.25f,1).x,.01f)
+        assertEquals(239f,ConveyorGeometry.position(.75f,2).y,.01f)
     }
     @Test fun bendsKeepNearlyTheSameDistancePerFrame() {
         val distances=(0 until 200).map { i ->
@@ -24,4 +24,10 @@ class ConveyorGeometryTest {
         assertEquals(start,robot.phase,.0001f)
         assertSame(robot,game.passengers.first())
     }
+    @Test fun inletBodiesStayAboveTheMovingCrowd() {
+        val top=(0..3).flatMap { lane -> (0..512).map { ConveyorGeometry.position(it/512f,lane).y } }.min()
+        val spriteHeight=24f;val baseline=3.84f
+        assertTrue(top-spriteHeight+baseline > ConveyorGeometry.inletEndY+baseline+8f)
+    }
+
 }

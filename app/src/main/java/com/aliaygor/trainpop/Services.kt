@@ -39,7 +39,7 @@ class RewardAds(private val activity:Activity,private val status:(String)->Unit)
     private var pending:(()->Unit)?=null
     private val handler=android.os.Handler(android.os.Looper.getMainLooper())
     val preparing get()=pending!=null
-    private val timeout=Runnable { if(pending!=null) { pending=null;showing=false;status("Reklam y�klenemedi. Tekrar deneyebilirsin.") } }
+    private val timeout=Runnable { if(pending!=null) { pending=null;showing=false;status("Reklam yüklenemedi. Tekrar deneyebilirsin.") } }
     fun release() { pending=null;handler.removeCallbacks(timeout) }
     var showing=false;private set
     private val unit = if(BuildConfig.DEBUG) "ca-app-pub-3940256099942544/5224354917" else BuildConfig.REWARDED_AD_ID
@@ -49,14 +49,14 @@ class RewardAds(private val activity:Activity,private val status:(String)->Unit)
         loading=true
         RewardedAd.load(activity,unit,AdRequest.Builder().build(),object:RewardedAdLoadCallback() {
             override fun onAdLoaded(value:RewardedAd) { loading=false;ad=value;pending?.let { pending=null;showing=false;handler.removeCallbacks(timeout);show(it) } }
-            override fun onAdFailedToLoad(error:LoadAdError) { loading=false;ad=null;if(pending!=null) { pending=null;showing=false;handler.removeCallbacks(timeout);status("Reklam y�klenemedi; haklar�n korunuyor.") } }
+            override fun onAdFailedToLoad(error:LoadAdError) { loading=false;ad=null;if(pending!=null) { pending=null;showing=false;handler.removeCallbacks(timeout);status("Reklam yüklenemedi; hakların korunuyor.") } }
         })
     }
     fun show(reward:()->Unit) {
         if(showing) return
         if(!BuildConfig.DEBUG) { status("Canlı reklamlar henüz etkin değil.");return }
         val current=ad
-        if(current==null) { load();status("Reklam hazırlanıyor. Biraz sonra tekrar dene.");return }
+        if(current==null) { pending=reward;showing=true;handler.removeCallbacks(timeout);handler.postDelayed(timeout,15000);load();return }
         showing=true;ad=null;var granted=false
         current.fullScreenContentCallback=object:FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() { showing=false;load() }

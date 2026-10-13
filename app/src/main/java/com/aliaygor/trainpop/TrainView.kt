@@ -17,17 +17,18 @@ class TrainView(private val activity:Activity):View(activity) {
     private val gardenArt=BitmapFactory.decodeResource(resources,R.drawable.garden_v7)
     private var welcomeUntil=0f
     private val station=BitmapFactory.decodeResource(resources,R.drawable.station)
-    private val trainSprites=listOf(R.drawable.train_blue,R.drawable.train_yellow,R.drawable.train_pink,R.drawable.train_purple,R.drawable.train_green,R.drawable.train_orange).map { BitmapFactory.decodeResource(resources,it) }
+    private val trainSprites=listOf(R.drawable.engine_blue_v8,R.drawable.engine_yellow_v8,R.drawable.engine_pink_v8,R.drawable.engine_purple_v8,R.drawable.engine_green_v8,R.drawable.engine_orange_v8).map { BitmapFactory.decodeResource(resources,it) }
     private val robotSprites=listOf(R.drawable.crowd_cyan_front_v7,R.drawable.crowd_yellow_front_v7,R.drawable.crowd_pink_front_v7,R.drawable.crowd_purple_front_v7,R.drawable.crowd_green_front_v7,R.drawable.crowd_orange_front_v7,R.drawable.crowd_cyan_frontright_v7,R.drawable.crowd_yellow_frontright_v7,R.drawable.crowd_pink_frontright_v7,R.drawable.crowd_purple_frontright_v7,R.drawable.crowd_green_frontright_v7,R.drawable.crowd_orange_frontright_v7,R.drawable.crowd_cyan_right_v7,R.drawable.crowd_yellow_right_v7,R.drawable.crowd_pink_right_v7,R.drawable.crowd_purple_right_v7,R.drawable.crowd_green_right_v7,R.drawable.crowd_orange_right_v7,R.drawable.crowd_cyan_backright_v7,R.drawable.crowd_yellow_backright_v7,R.drawable.crowd_pink_backright_v7,R.drawable.crowd_purple_backright_v7,R.drawable.crowd_green_backright_v7,R.drawable.crowd_orange_backright_v7,R.drawable.crowd_cyan_back_v7,R.drawable.crowd_yellow_back_v7,R.drawable.crowd_pink_back_v7,R.drawable.crowd_purple_back_v7,R.drawable.crowd_green_back_v7,R.drawable.crowd_orange_back_v7,R.drawable.crowd_cyan_backleft_v7,R.drawable.crowd_yellow_backleft_v7,R.drawable.crowd_pink_backleft_v7,R.drawable.crowd_purple_backleft_v7,R.drawable.crowd_green_backleft_v7,R.drawable.crowd_orange_backleft_v7,R.drawable.crowd_cyan_left_v7,R.drawable.crowd_yellow_left_v7,R.drawable.crowd_pink_left_v7,R.drawable.crowd_purple_left_v7,R.drawable.crowd_green_left_v7,R.drawable.crowd_orange_left_v7,R.drawable.crowd_cyan_frontleft_v7,R.drawable.crowd_yellow_frontleft_v7,R.drawable.crowd_pink_frontleft_v7,R.drawable.crowd_purple_frontleft_v7,R.drawable.crowd_green_frontleft_v7,R.drawable.crowd_orange_frontleft_v7).map { BitmapFactory.decodeResource(resources,it) }
+    private val menuSprites=listOf(R.drawable.menu_starter_v8,R.drawable.menu_ads_v8,R.drawable.menu_shop_v8,R.drawable.menu_supply_v8,R.drawable.menu_wheel_v8,R.drawable.menu_daily_v8).map { BitmapFactory.decodeResource(resources,it) }
     private val hostParts=listOf(R.drawable.host_head_v7,R.drawable.host_body_v7,R.drawable.host_arm_left_v7,R.drawable.host_arm_right_v7,R.drawable.host_leg_left_v7,R.drawable.host_leg_right_v7).map { BitmapFactory.decodeResource(resources,it) }
-    private val wagonSprites=listOf(R.drawable.wagon_blue,R.drawable.wagon_yellow,R.drawable.wagon_pink,R.drawable.wagon_purple,R.drawable.wagon_green,R.drawable.wagon_orange).map { BitmapFactory.decodeResource(resources,it) }
+    private val wagonSprites=listOf(R.drawable.carriage_blue_v8,R.drawable.carriage_yellow_v8,R.drawable.carriage_pink_v8,R.drawable.carriage_purple_v8,R.drawable.carriage_green_v8,R.drawable.carriage_orange_v8).map { BitmapFactory.decodeResource(resources,it) }
     private var game=Game.restore(prefs.getString("session","") ?: "")?.takeIf { it.level==economy.level } ?: Game(economy.level)
     private var screen="splash"
     private var modal=""
     private var time=0f
     private var last=0L
     private var flowDelta=0f
-    private data class Merge(val start:PointF,var age:Float=0f)
+    private data class Merge(val start:PointF,var age:Float=0f,var previous:PointF=PointF(start.x,start.y),var facing:Float=0f)
     private val merges=java.util.IdentityHashMap<Passenger,Merge>()
     private var active=true
     private var scale=1f
@@ -42,6 +43,7 @@ class TrainView(private val activity:Activity):View(activity) {
     private var shakeId=-1
     private var shakeUntil=0f
     private var hintId=-1
+    private var selectedDock=0
     private val waitingY=java.util.IdentityHashMap<Passenger,Float>()
     private var lastBoarded=0
     private var spinAge=-1f
@@ -62,12 +64,12 @@ class TrainView(private val activity:Activity):View(activity) {
         isFocusable=true;contentDescription="Train Pop"
         economy.finishSpin()?.let { reward=it;rewardReturn="wheel";modal="reward" }
         audio.effects=effects
-        art.trainSprites=trainSprites;art.wagonSprites=wagonSprites;art.directionalPassengers=robotSprites.chunked(6)
+        art.trainSprites=trainSprites;art.wagonSprites=wagonSprites;art.directionalPassengers=robotSprites.chunked(6);art.menuSprites=mapOf("starter" to menuSprites[0],"coin" to menuSprites[0],"ads" to menuSprites[1],"shop" to menuSprites[2],"supply" to menuSprites[3],"wheel" to menuSprites[4],"daily" to menuSprites[5])
     }
     private fun day()=java.text.SimpleDateFormat("yyyy-MM-dd",java.util.Locale.US).format(java.util.Date())
     fun pause() { active=false;last=0;audio.music(false);if(screen=="game" && !game.completed) prefs.edit().putString("session",game.checkpoint()).apply() }
     fun resume() { active=true;last=0;audio.music(music);invalidate();store.restore(false) }
-    fun release() { ads.release();art.release();audio.release();store.release();station.recycle();gardenArt.recycle();hostParts.forEach { it.recycle() };trainSprites.forEach { it.recycle() };wagonSprites.forEach { it.recycle() };robotSprites.forEach { it.recycle() } }
+    fun release() { ads.release();art.release();audio.release();store.release();station.recycle();gardenArt.recycle();hostParts.forEach { it.recycle() };trainSprites.forEach { it.recycle() };wagonSprites.forEach { it.recycle() };robotSprites.forEach { it.recycle() };menuSprites.forEach { it.recycle() } }
     fun back() {
         if(spinAge>=0 || ads.showing) return
         when { modal.startsWith("purchase:") -> modal="shop"; modal=="reward"->modal=rewardReturn;modal=="full" -> Unit; modal.isNotEmpty()->modal=""; screen=="game"->modal="leave";else->activity.finish() }
@@ -75,13 +77,13 @@ class TrainView(private val activity:Activity):View(activity) {
     }
     private fun notice(s:String) { activity.runOnUiThread { toast=s;toastUntil=time+3f;invalidate() } }
     private fun open(name:String) { modal=name;shopScroll=0f;pressed=null }
-    private fun start(fresh:Boolean=true) { if(fresh || game.level!=economy.level || game.completed) game=Game(economy.level);screen="game";modal=if(game.failed) "full" else "";hintId=-1;lastBoarded=game.boarded;waitingY.clear();merges.clear() }
+    private fun start(fresh:Boolean=true) { if(fresh || game.level!=economy.level || game.completed) game=Game(economy.level);screen="game";modal=if(game.failed) "full" else "";hintId=-1;selectedDock=(0 until game.platformCount).firstOrNull { game.platforms[it]==null } ?: 0;lastBoarded=game.boarded;waitingY.clear();merges.clear() }
     private fun showReward(r:Reward?) { if(r!=null) { reward=r;rewardReturn=if(modal in setOf("wheel","daily","supply","shop","gold")) modal else "";modal="reward";audio.play("win") } else notice("Bu ödül zaten alındı.") }
     private fun haptic() { if(vibration) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }
     private fun hit(x:Float,y:Float,w:Float,h:Float,id:String,action:()->Unit) { hits+=Hit(RectF(x,y,x+w,y+h),id,action) }
     private fun button(c:Canvas,x:Float,y:Float,w:Float,h:Float,s:String,color:Int=0xFF41D62F.toInt(),id:String=s,enabled:Boolean=true,action:()->Unit) {
         val pushed=pressed?.id==id;val dy=if(pushed) 4f else 0f;val col=if(enabled) color else 0xFFA8B1C6.toInt()
-        art.box(c,x-3,y+7,w+6,h,0xFFF4F7F8.toInt(),19f)
+        art.box(c,x,y+9,w,h,0x30203547,16f)
         art.box(c,x,y+7,w,h,art.shade(col,.64f),16f)
         art.gradient(c,x,y+dy,w,h,col,art.shade(col,.91f),16f)
         art.box(c,x+8,y+5+dy,w-16,3f,0x44FFFFFF,2f)
@@ -147,10 +149,10 @@ class TrainView(private val activity:Activity):View(activity) {
         entries.forEachIndexed { i,(kind,name)->
             if((kind=="starter" && economy.starterOwned) || (kind=="ads" && economy.noAds)) return@forEachIndexed
             val x=if(i<3) 49f else 351f;val y=263f+(i%3)*94f
-            art.circle(c,x,y+3,38f,0xFFB1B3DC.toInt());art.circle(c,x,y,38f,Color.WHITE)
-            art.circle(c,x,y,32f,if(i<3) 0xFFB37CE9.toInt() else 0xFFCE8AEE.toInt())
-            if(kind=="wheel") { val phase=(time%2f/.55f).coerceAtMost(1f);art.wheel(c,x,y,27f,if(motion) phase*360 else 0f) } else art.icon(c,kind,x,y,.9f)
-            art.box(c,x-46,y+27,92f,25f,0xFFB8BDDD.toInt(),10f);art.box(c,x-46,y+24,92f,25f,0xFFF9FBFF.toInt(),10f);art.label(c,name,x,y+42,if(name.length>10) 12f else 15f)
+            art.circle(c,x,y+3,38f,0x40203442);art.circle(c,x,y,38f,0xFF24485E.toInt())
+            art.circle(c,x,y,32f,0xFF346276.toInt())
+            if(kind=="wheel") { val phase=(time%2f/.65f).coerceAtMost(1f);c.save();c.rotate(if(motion) phase*360 else 0f,x,y);art.icon(c,kind,x,y,1.05f);c.restore() } else art.icon(c,kind,x,y,1.05f)
+            art.box(c,x-46,y+26,92f,25f,0x40203442,10f);art.box(c,x-46,y+23,92f,25f,0xFF24485E.toInt(),10f);art.label(c,name,x,y+41,if(name.length>10) 12f else 15f,Color.WHITE)
             val badge=kind=="daily" && economy.dailyAvailable(day()) || kind=="supply" && economy.supplyStep(day())<5 || kind=="wheel" && economy.spins(day())>0
             if(badge) { art.circle(c,x-30,y-27,11f,0xFFFF752C.toInt());art.label(c,"!",x-30,y-22,17f,Color.WHITE,true) }
             hit(x-47,y-40,94f,94f,kind) { open(kind) }
@@ -190,19 +192,48 @@ class TrainView(private val activity:Activity):View(activity) {
         art.p.shader=null;art.p.alpha=255;art.p.isFilterBitmap=true
         c.drawBitmap(gardenArt,null,RectF(0f,0f,400f,333f),art.p)
     }
-    private fun drawPassenger(c:Canvas,robot:Passenger,pos:PointF) {
+    private fun drawPassenger(c:Canvas,robot:Passenger,pos:PointF,facingOverride:Float?=null) {
         val next=queuePosition(robot.phase+.001f,robot.lane)
         val here=queuePosition(robot.phase,robot.lane)
-        val facing=atan2(next.x-here.x,next.y-here.y)*180f/PI.toFloat()
+        val facing=facingOverride ?: (atan2(next.x-here.x,next.y-here.y)*180f/PI.toFloat())
         art.robot(c,pos.x,pos.y,art.colors[robot.color],.48f,facing=facing)
     }
-    private fun yardPosition(t:Train):PointF { val cell=45f;return PointF(65f+(t.x+(if(t.direction.dx!=0) (t.length-1)/2f else 0f))*cell,490f+(t.y+(if(t.direction.dy!=0) (t.length-1)/2f else 0f))*cell) }
-    private fun slotX(slot:Int)=82f+slot*43f
+    private val routeNames=listOf("KIYI","VADİ","ŞEHİR","GECE","EK HAT","EK HAT","EK HAT")
+    private fun dockPosition(slot:Int):PointF = if(slot<4) PointF(if(slot%2==0) 107f else 293f,376f+(slot/2)*53f) else PointF(67f+(slot-4)*133f,473f)
+    private fun slotX(slot:Int)=dockPosition(slot).x
+    private fun yardPosition(t:Train):PointF { val cell=43f;return PointF(65f+(t.x+(if(t.direction.dx!=0) (t.length-1)/2f else 0f))*cell,523f+(t.y+(if(t.direction.dy!=0) (t.length-1)/2f else 0f))*cell) }
+    private fun stationDocks(c:Canvas) {
+        art.gradient(c,0f,333f,400f,157f,0xFF24485C.toInt(),0xFF163348.toInt(),0f)
+        art.caption(c,"RAY KUMANDA",200f,348f,11f,0xFFB6D8D5.toInt())
+        art.caption(c,"Hat seç · Treni gönder",200f,497f,9f)
+        for(i in 0..6) {
+            val point=dockPosition(i);val compact=i>=4;val w=if(compact) 113f else 166f;val h=if(compact) 27f else 46f
+            val x=point.x-w/2;val y=point.y-h/2;val unlocked=i<game.platformCount;val selected=i==selectedDock && unlocked
+            art.box(c,x,y,w,h,if(selected) 0xFF388A91.toInt() else 0xFF2D5265.toInt(),10f)
+            if(selected) { art.box(c,x+7,y+3,w-14,2f,0xFFFFD56A.toInt(),1f) }
+            val railY=point.y+4
+            art.line(c,x+10,railY-4,x+w-10,railY-4,0xFF92A7AF.toInt(),1.3f)
+            art.line(c,x+10,railY+5,x+w-10,railY+5,0xFF92A7AF.toInt(),1.3f)
+            for(j in 0..8) art.line(c,x+12+j*(w-24)/8,railY-6,x+12+j*(w-24)/8,railY+7,0x55718A96,1.5f)
+            if(!compact) art.caption(c,routeNames[i],point.x,y+12f,9f,if(selected) 0xFFFFD56A.toInt() else 0xFFBDD2DD.toInt())
+            val t=game.platforms[i]
+            if(!unlocked) art.label(c,"+ Ek hat",point.x,point.y+5,12f,0xFF85D6C4.toInt())
+            else if(t==null) art.caption(c,if(compact) "Hazır" else if(selected) "SEÇİLİ" else "Dokun ve seç",point.x,point.y+8,9f,0xFFBDD2DD.toInt())
+            if(t!=null && t.phase==TrainPhase.PARKED) {
+                art.box(c,point.x+36,point.y-6,39f,17f,art.colors[t.color],6f)
+                art.label(c,"${t.capacity-t.remaining}/${t.capacity}",point.x+55,point.y+6,10f,Color.WHITE,true)
+                if(!compact) { art.box(c,x+10,y+h-5,w-20,2f,0xFF173747.toInt(),1f);art.box(c,x+10,y+h-5,(w-20)*(t.capacity-t.remaining)/t.capacity,2f,art.colors[t.color],1f) }
+            }
+            hit(x,if(compact) y-8f else y,w,if(compact) 44f else h,"route$i") { if(!unlocked) open("slot") else { selectedDock=i;if(t!=null) notice("${routeNames[i]} • ${t.remaining} yolcu bekliyor") } }
+        }
+        hit(11f,335f,95f,18f,"vipgate") { selectedBooster="vip";open("booster") }
+        art.caption(c,"★ EKSPRES",55f,348f,10f,art.colors[1])
+    }
     private fun route(t:Train):PointF {
         val start=yardPosition(t);val p=t.progress
         val exit=PointF(if(t.direction.dx<0) -40f else if(t.direction.dx>0) 440f else start.x,if(t.direction.dy<0) 440f else if(t.direction.dy>0) 785f else start.y)
         if(p<.42f) { val raw=p/.42f;val q=raw*raw*(3-2*raw);return PointF(start.x+(exit.x-start.x)*q,start.y+(exit.y-start.y)*q) }
-        val raw=(p-.42f)/.58f;val q=raw*raw*(3-2*raw);val target=PointF(slotX(t.slot),378f)
+        val raw=(p-.42f)/.58f;val q=raw*raw*(3-2*raw);val dock=dockPosition(t.slot);val target=PointF(dock.x-25f,dock.y+4f)
         // A quadratic turn into the station. Position is continuous at the yard boundary.
         val control=PointF(exit.x,335f)
         return PointF((1-q).pow(2)*exit.x+2*(1-q)*q*control.x+q*q*target.x,(1-q).pow(2)*exit.y+2*(1-q)*q*control.y+q*q*target.y)
@@ -215,53 +246,47 @@ class TrainView(private val activity:Activity):View(activity) {
         art.box(c,118f,72f,164f,7f,0xFFB7CDD8.toInt(),5f);art.box(c,118f,72f,164f*game.boarded/game.total,7f,art.colors[4],5f)
         // Incoming lanes and the loop form a station conveyor, with its gate at bottom center.
         c.save();c.clipRect(0f,84f,400f,327f)
-        val path=Path();path.addOval(RectF(61f,119f,339f,291f),Path.Direction.CW);path.moveTo(61f,-20f);path.lineTo(61f,205f);path.moveTo(339f,-20f);path.lineTo(339f,205f)
+        val path=Path();path.addOval(RectF(61f,179f,339f,299f),Path.Direction.CW);path.moveTo(61f,-20f);path.lineTo(61f,123f);path.moveTo(339f,-20f);path.lineTo(339f,123f)
         art.p.style=Paint.Style.STROKE;art.p.strokeWidth=79f;art.p.color=0xFFFAFFFF.toInt();c.drawPath(path,art.p)
         art.p.strokeWidth=70f;art.p.color=0xFF727C87.toInt();c.drawPath(path,art.p)
         art.p.style=Paint.Style.FILL
-        art.box(c,159f,305f,82f,13f,0xFFFFD056.toInt(),4f)
+        art.box(c,159f,314f,82f,10f,0xFFFFD056.toInt(),4f)
         c.restore()
         c.save();c.clipRect(0f,84f,400f,326f)
         val waiting=game.passengers.filter { it.phase<0f }
         waitingY.keys.removeAll { key -> game.passengers.none { it===key } };merges.keys.removeAll { key -> game.passengers.none { it===key } }
-        val waitingRanks=IntArray(8)
+        data class Sprite(val robot:Passenger,val point:PointF,val waiting:Boolean,val facing:Float?=null)
+        val sprites=mutableListOf<Sprite>();val ranks=IntArray(8)
         waiting.forEach { robot ->
-            val left=robot.lane<4;val rank=waitingRanks[robot.lane]++
-            val target=205f-rank*15f
-            val old=waitingY[robot] ?: target
-            val yy=old+(target-old).coerceIn(-flowDelta*45f,flowDelta*45f);waitingY[robot]=yy
-            val offset=(robot.lane%4-1.5f)*17f
-            val xx=if(left) 61f-offset else 339f+offset
-            if(yy>64f) art.robot(c,xx,yy,art.colors[robot.color],.48f)
+            val target=ConveyorGeometry.inletEndY-ranks[robot.lane]++*12.5f
+            val old=waitingY[robot] ?: target;val yy=old+(target-old).coerceIn(-flowDelta*35f,flowDelta*35f)
+            waitingY[robot]=yy;val offset=(robot.lane%4-1.5f)*15.5f
+            if(yy>64f) sprites+=Sprite(robot,PointF(if(robot.lane<4) 61f-offset else 339f+offset,yy),true)
         }
-        game.passengers.filter { it.phase>=0f }.sortedBy { queuePosition(it.phase,it.lane).y }.forEach { robot ->
+        game.passengers.filter { it.phase>=0f }.forEach { robot ->
             val target=queuePosition(robot.phase,robot.lane)
-            waitingY.remove(robot)?.let { yy -> merges[robot]=Merge(PointF(if(robot.lane<4) 61f-(robot.lane%4-1.5f)*17f else 339f+(robot.lane%4-1.5f)*17f,yy)) }
+            waitingY.remove(robot)?.let { yy -> val offset=(robot.lane%4-1.5f)*15.5f;merges[robot]=Merge(PointF(if(robot.lane<4) 61f-offset else 339f+offset,yy)) }
             val transition=merges[robot]
             val pos=if(transition!=null) {
-                transition.age+=flowDelta;val u=(transition.age/.4f).coerceIn(0f,1f);val q=u*u*(3-2*u)
+                transition.age+=flowDelta;val u=(transition.age/1.1f).coerceIn(0f,1f);val q=u*u*(3-2*u)
                 if(u>=1f) merges.remove(robot)
                 PointF(transition.start.x+(target.x-transition.start.x)*q,transition.start.y+(target.y-transition.start.y)*q)
             } else target
-            drawPassenger(c,robot,pos)
+            val facing=transition?.let { merge ->
+                val dx=pos.x-merge.previous.x;val dy=pos.y-merge.previous.y
+                if(flowDelta>0f && hypot(dx,dy)>.02f) merge.facing=atan2(dx,dy)*180f/PI.toFloat()
+                merge.previous=PointF(pos.x,pos.y);merge.facing
+            }
+            sprites+=Sprite(robot,pos,false,facing)
         }
+        // Queue and moving robots share the same ground-depth ordering. Inlets stop above the loop.
+        sprites.sortedBy { it.point.y }.forEach { if(it.waiting) art.robot(c,it.point.x,it.point.y,art.colors[it.robot.color],.48f) else drawPassenger(c,it.robot,it.point,it.facing) }
         c.restore()
         if(game.level==1 && game.moves==0) art.caption(c,"Renkleri eşleştir • Çıkışı açık trenlere dokun",200f,98f,11f)
-        art.box(c,0f,333f,400f,99f,0xFF6C7A94.toInt(),0f)
-        art.label(c,"VIP",27f,359f,12f,art.colors[1]);art.box(c,11f,367f,33f,44f,0xFF526078.toInt(),7f)
-        hit(7f,337f,40f,82f,"vipgate") { selectedBooster="vip";open("booster") }
-        for(i in 0..6) {
-            val x=slotX(i);val unlocked=i<game.platformCount
-            art.box(c,x-19,346f,38f,57f,if(unlocked) 0xFFBECEDD.toInt() else 0xFF668C8C.toInt(),7f)
-            art.box(c,x-16,349f,32f,51f,0xFF6C7A94.toInt(),5f)
-            if(!unlocked) { art.label(c,"+",x,381f,29f,0xFF83E08F.toInt());hit(x-20,344f,40f,65f,"slot$i") { open("slot") } }
-            else if(game.platforms[i]==null) art.caption(c,"${i+1}",x,383f,14f,0xFFC9D6E5.toInt())
-        }
-        art.line(c,0f,434f,400f,434f,Color.WHITE,4f)
-        art.caption(c,"Aynı renk robotları toplamak için tren gönder",200f,455f,12f)
+        stationDocks(c)
         for(side in listOf(17f,383f)) {
-            art.line(c,side-3,478f,side-3,744f,0x55A5B6C9,1.3f);art.line(c,side+3,478f,side+3,744f,0x55A5B6C9,1.3f)
-            for(i in 0..17) art.line(c,side-5,482f+i*15,side+5,482f+i*15,0x44A5B6C9,2f)
+            art.line(c,side-3,518f,side-3,747f,0x55A5B6C9,1.3f);art.line(c,side+3,518f,side+3,747f,0x55A5B6C9,1.3f)
+            for(i in 0..15) art.line(c,side-5,522f+i*15,side+5,522f+i*15,0x44A5B6C9,2f)
         }
         game.yard.sortedBy { it.y }.forEach { t->
             val pos=yardPosition(t);val shake=if(t.id==shakeId && time<shakeUntil) sin(time*60)*4 else 0f
@@ -269,29 +294,28 @@ class TrainView(private val activity:Activity):View(activity) {
             art.train(c,pos.x+shake,pos.y,art.colors[t.color],if(t.length==2) 82f else 42f,28f,t.direction.angle)
             val horizontal=t.direction.dx!=0;val w=if(horizontal && t.length==2) 86f else 41f;val h=if(!horizontal && t.length==2) 86f else 41f
             hit(pos.x-w/2,pos.y-h/2,w,h,"train${t.id}") {
-                when(game.dispatch(t.id)) {
-                    Result.MOVED->{ hintId=-1;haptic();audio.play("depart") }
+                when(game.dispatch(t.id,selectedDock)) {
+                    Result.MOVED->{ hintId=-1;selectedDock=(0 until game.platformCount).firstOrNull { game.platforms[it]==null && game.departing.none { t -> t.slot==it } } ?: selectedDock;haptic();audio.play("depart") }
                     Result.BLOCKED->{ shakeId=t.id;shakeUntil=time+.35f;audio.play("error");notice("Bu trenin çıkışı kapalı.") }
-                    Result.FULL->notice("Peronlar dolu. Robotların binmesini bekle.")
+                    Result.FULL->notice("Seçili hat dolu. Boş bir hat seç.")
                     Result.BUSY->Unit
                 }
             }
         }
         game.platforms.filterNotNull().forEach { t->
-            val pos=if(t.phase==TrainPhase.ARRIVING) route(t) else PointF(slotX(t.slot),376f)
+            val pos=if(t.phase==TrainPhase.ARRIVING) route(t) else dockPosition(t.slot).let { PointF(it.x-25f,it.y+4f) }
             val turn=((t.progress-.42f)/.58f).coerceIn(0f,1f);val ease=turn*turn*(3-2*turn)
-            val difference=((180f-t.direction.angle+540f)%360f)-180f
-            val angle=if(t.phase==TrainPhase.ARRIVING) t.direction.angle+difference*ease else 180f
-            art.train(c,pos.x,pos.y,art.colors[t.color],47f,27f,angle,false)
-            if(t.phase==TrainPhase.PARKED) { art.box(c,pos.x-16,411f,32f,17f,art.colors[t.color],5f);art.label(c,"${t.remaining}",pos.x,424f,13f,Color.WHITE,true) }
+            val difference=((90f-t.direction.angle+540f)%360f)-180f
+            val angle=if(t.phase==TrainPhase.ARRIVING) t.direction.angle+difference*ease else 90f
+            art.train(c,pos.x,pos.y,art.colors[t.color],if(t.length==2) 78f else 49f,27f,angle,false)
+
         }
-        game.departing.forEach { t->val sx=if(t.slot<0) 26f else slotX(t.slot);art.train(c,sx+(430-sx)*t.progress,376f,art.colors[t.color],47f,27f,90f,false) }
-        game.boarding.forEach { b->val q=(b.age/.5f).coerceAtMost(1f);val startY=291f+(b.lane%4-1.5f)*17f;val eased=q*q*(3-2*q);art.robot(c,200f+(slotX(b.slot)-200)*eased,startY+(367-startY)*eased,art.colors[b.color],.48f*(1-q*.4f)) }
+        game.departing.forEach { t -> val point=if(t.slot<0) PointF(35f,350f) else dockPosition(t.slot).let { PointF(it.x-25f,it.y+4f) };art.train(c,point.x+(430-point.x)*t.progress,point.y,art.colors[t.color],if(t.length==2) 78f else 49f,27f,90f,false) }
+        game.boarding.forEach { b -> val q=(b.age/.5f).coerceAtMost(1f);val startY=299f+(b.lane%4-1.5f)*15.5f;val u=q*q*(3-2*q);val target=dockPosition(b.slot);art.robot(c,200f+(target.x-225f)*u,startY+(target.y+4-startY)*u,art.colors[b.color],.48f*(1-q*.4f)) }
         val names=listOf("VIP","Düzenle","Karıştır");val keys=listOf("vip","arrange","shuffle")
         keys.forEachIndexed { i,key->val x=20f+i*126;val yy=765f;val down=pressed?.id=="boost$key";val offset=if(down) 4f else 0f
             val col=if(i==0) 0xFFFFBD43.toInt() else if(i==1) 0xFF8F83ED.toInt() else 0xFF42B9E7.toInt()
-            art.box(c,x-2,yy+8,112f,68f,0xFFADBACA.toInt(),18f)
-            art.box(c,x-2,yy+4,112f,68f,Color.WHITE,18f)
+            art.box(c,x,yy+8,108f,65f,0x30203442,15f)
             art.box(c,x,yy+7,108f,63f,art.shade(col,.65f),15f)
             art.gradient(c,x,yy+offset,108f,63f,art.shade(col,1.15f),col,15f)
             art.icon(c,key,x+54,yy+23+offset,.88f)
@@ -330,7 +354,7 @@ class TrainView(private val activity:Activity):View(activity) {
         if(modal=="wheel") { wheelScreen(c);return }
         val title=when {
             modal.startsWith("purchase:")->productTitle(modal.substringAfter(':'))
-            else->when(modal) { "starter"->"Başlangıç Paketi";"ads"->"Reklamsız Paket";"daily"->"Günlük Bonus";"supply"->"Günlük İkmal";"settings"->"Ayarlar";"win"->"Harika!";"full"->"Boş yer yok";"restart"->"Yeniden Başlat";"leave"->"Ana Sayfa";"slot"->"Ek Peron";"booster"->when(selectedBooster) {"vip"->"VIP Ekspres";"arrange"->"Düzenle";else->"Karıştır"};"reward"->"Ödülün hazır!";else->"Train Pop" }
+            else->when(modal) { "starter"->"Başlangıç Paketi";"ads"->"Reklamsız Paket";"daily"->"Günlük Bonus";"supply"->"Günlük İkmal";"settings"->"Ayarlar";"win"->"Harika!";"full"->"Boş yer yok";"restart"->"Yeniden Başlat";"leave"->"Ana Sayfa";"slot"->"Ek Hat";"booster"->when(selectedBooster) {"vip"->"VIP Ekspres";"arrange"->"Düzenle";else->"Karıştır"};"reward"->"Ödülün hazır!";else->"Train Pop" }
         }
         val tall=modal=="daily" || modal=="supply" || modal=="settings"
         val y=if(tall) 120f else 213f;val h=if(tall) 626f else 420f
@@ -350,7 +374,7 @@ class TrainView(private val activity:Activity):View(activity) {
             }
             modal=="restart" || modal=="leave"->{ art.icon(c,"restart",200f,y+139,2f);art.caption(c,if(modal=="restart") "Bu bölümdeki hamleler sıfırlanacak." else "Bölüme sonra devam edebilirsin.",200f,y+223,15f);button(c,49f,y+316,142f,52f,"Hayır",art.colors[5]) { modal="" };button(c,209f,y+316,142f,52f,"Evet") { if(modal=="restart") start() else { prefs.edit().putString("session",game.checkpoint()).apply();screen="home";modal="" } } }
             modal=="full"->{ art.icon(c,"arrange",200f,y+129,1.6f);art.caption(c,"Bekleyen trenleri gönder",200f,y+204,19f);art.caption(c,"ve bir ek peron aç!",200f,y+230,19f);button(c,49f,y+273,142f,47f,"900 altın",art.colors[1]) { if(economy.spend(900) { game.rescue() }) modal="" else notice("Yeterli altın yok.") };button(c,209f,y+273,142f,47f,"Reklam İzle") { ads.show { if(game.rescue()) modal="" } };button(c,69f,y+343,262f,39f,"Yeniden Başlat",art.colors[0]) { start() } }
-            modal=="slot"->{ art.icon(c,"supply",200f,y+143,1.8f);art.caption(c,"Bu bölüm için bir ek peron aç.",200f,y+232,16f);button(c,49f,y+310,142f,50f,"150 altın",art.colors[1]) { if(economy.spend(150) { game.addPlatform() }) modal="" else notice("Altın yetersiz veya tüm peronlar açık.") };button(c,209f,y+310,142f,50f,"Reklam İzle") { ads.show { game.addPlatform();modal="" } } }
+            modal=="slot"->{ art.icon(c,"supply",200f,y+143,1.8f);art.caption(c,"Bu bölüm için yeni bir hat aç.",200f,y+232,16f);button(c,49f,y+310,142f,50f,"150 altın",art.colors[1]) { if(economy.spend(150) { game.addPlatform() }) modal="" else notice("Altın yetersiz veya tüm peronlar açık.") };button(c,209f,y+310,142f,50f,"Reklam İzle") { ads.show { game.addPlatform();modal="" } } }
             modal=="booster"->booster(c,y)
         }
     }
@@ -394,7 +418,7 @@ class TrainView(private val activity:Activity):View(activity) {
         button(c,49f,y+390,142f,46f,"Ana Sayfa",art.colors[5]) { if(screen=="game") open("leave") else modal="" }
         button(c,209f,y+390,142f,46f,if(screen=="game") "Yeniden" else "Oyna") { if(screen=="game") open("restart") else start() }
         button(c,63f,y+463,274f,43f,"Satın Almaları Geri Yükle",art.colors[0]) { store.restore() }
-        art.caption(c,"AXIO • Train Pop 0.7",200f,y+555,13f)
+        art.caption(c,"AXIO • Train Pop 0.8",200f,y+555,13f)
         art.caption(c,if(BuildConfig.DEBUG) "Test reklamları etkin" else "",200f,y+581,11f)
     }
     private fun productTitle(id:String)=when(id) { "starter_pack"->"Başlangıç Paketi";"remove_ads"->"Reklamsız";"ad_free_bundle"->"Reklamsız Paket";"coins_500"->"500 Altın";else->"3.000 Altın" }
@@ -402,33 +426,34 @@ class TrainView(private val activity:Activity):View(activity) {
     private fun purchase(c:Canvas,y:Float) {
         val id=when(modal) {"starter"->"starter_pack";"ads"->"ad_free_bundle";else->modal.substringAfter(':') }
         val r=productReward(id);art.icon(c,if(id.contains("ads") || id=="ad_free_bundle") "ads" else "coin",200f,y+134,1.9f)
-        if(id=="remove_ads" || id=="ad_free_bundle") { art.caption(c,"Zorunlu reklamları kalıcı olarak kaldırır.",200f,y+206,14f);art.caption(c,"İsteğe bağlı ödül reklamları devam eder.",200f,y+232,12f) }
+        if(id=="remove_ads") { art.caption(c,"Zorunlu reklamları kalıcı olarak kaldırır.",200f,y+206,14f);art.caption(c,"İsteğe bağlı ödül reklamları devam eder.",200f,y+232,12f) } else if(id=="ad_free_bundle") { art.label(c,"${r.coins} altın + reklamsız",200f,y+206,22f);art.caption(c,"Zorunlu reklamları kalıcı olarak kaldırır.",200f,y+232,12f) }
         else art.label(c,"${r.coins} altın",200f,y+206,26f)
         if(r.vip>0) { art.box(c,48f,y+247,304f,55f,0xFFE7D5F8.toInt(),12f);listOf("vip","arrange","shuffle").forEachIndexed { i,k->art.icon(c,k,89f+i*104,y+271,.66f);art.label(c,"×${r.vip}",115f+i*104,y+284,15f) } }
+        if(r.vip==0) { art.box(c,65f,y+263,270f,44f,0xFFE1E8D9.toInt(),12f);art.caption(c,if(id=="remove_ads") "Tek seferlik · Kalıcı erişim" else "Satın alınca altın bakiyene eklenir",200f,y+290,14f) }
         val owned=id=="starter_pack" && economy.starterOwned || (id=="remove_ads" || id=="ad_free_bundle") && economy.noAds
-        button(c,60f,y+331,280f,51f,if(owned) "Alındı" else store.price(id),enabled=!owned && store.available(id)) { store.buy(id) }
-        art.caption(c,if(store.available(id)) "Google Play ile güvenli satın alma" else "Satın alma yakında açılacak",200f,y+408,10f)
+        button(c,60f,y+331,280f,51f,if(owned) "Alındı" else if(store.available(id)) store.price(id) else "Kullanılamıyor",enabled=!owned && store.available(id)) { store.buy(id) }
+        art.caption(c,if(store.available(id)) "Google Play ile güvenli satın alma" else "Bu ürün şu anda kullanılamıyor",200f,y+408,10f)
     }
     private fun shop(c:Canvas,gold:Boolean) {
-        art.gradient(c,0f,0f,400f,850f,0xFF63AAE9.toInt(),0xFF587AC7.toInt(),0f);header(c,false)
+        art.gradient(c,0f,0f,400f,850f,0xFF214B5D.toInt(),0xFF132E42.toInt(),0f);header(c,false)
         // Header/settings actions must not leak into this modal.
         hits.clear();art.label(c,if(gold) "Altın" else "Mağaza",200f,118f,35f,Color.WHITE,true)
         button(c,342f,85f,36f,36f,"×",art.colors[5],"shopclose") { modal="" }
         val ids=if(gold) listOf("coins_500","coins_3000") else listOf("remove_ads","ad_free_bundle","starter_pack","coins_500","coins_3000")
         c.save();c.clipRect(12f,147f,388f,767f)
-        ids.forEachIndexed { i,id->val yy=154f+i*144-shopScroll;val col=if(id=="starter_pack") art.colors[2] else if(id.contains("ads") || id=="ad_free_bundle") art.colors[3] else art.colors[0]
+        ids.forEachIndexed { i,id->val yy=154f+i*144-shopScroll;val col=if(id=="starter_pack") 0xFF997C45.toInt() else if(id.contains("ads") || id=="ad_free_bundle") 0xFF655583.toInt() else 0xFF367D89.toInt()
             art.gradient(c,18f,yy,364f,127f,art.shade(col,1.15f),col,18f);art.icon(c,if(id.contains("ads") || id=="ad_free_bundle") "ads" else "coin",64f,yy+45,1.15f)
             art.label(c,productTitle(id),226f,yy+29,20f,Color.WHITE,true)
-            val r=productReward(id);art.caption(c,if(id=="remove_ads") "Zorunlu reklamları kaldır" else r.label(),226f,yy+57,12f,Color.WHITE)
+            val r=productReward(id);art.caption(c,if(id=="remove_ads") "Zorunlu reklamları kaldır" else if(r.vip>0) "${r.coins} altın + güçlendirmeler" else "${r.coins} altın",226f,yy+57,12f,Color.WHITE)
             val owned=id=="starter_pack" && economy.starterOwned || (id=="remove_ads" || id=="ad_free_bundle") && economy.noAds
             val hitBefore=hits.size
-            button(c,135f,yy+74,229f,36f,if(owned) "Alındı" else store.price(id),id="buy$id",enabled=!owned) { open("purchase:$id") }
+            button(c,135f,yy+74,229f,36f,if(owned) "Alındı" else if(store.available(id)) store.price(id) else "İncele",id="buy$id",enabled=!owned) { open("purchase:$id") }
             if(hits.size>hitBefore) { val old=hits.last();if(!old.rect.intersect(RectF(12f,147f,388f,767f))) hits.removeAt(hits.lastIndex) }
         };c.restore()
         button(c,60f,787f,280f,39f,"Reklam İzle · +50 Altın",art.colors[4],"adgold") { ads.show { showReward(economy.grantAdCoins()) } }
     }
     private fun wheelScreen(c:Canvas) {
-        art.gradient(c,0f,0f,400f,850f,0xFF8166CB.toInt(),0xFF474985.toInt(),0f)
+        art.gradient(c,0f,0f,400f,850f,0xFF326679.toInt(),0xFF182F45.toInt(),0f)
         art.label(c,"Şanslı Çark",200f,133f,34f,Color.WHITE,true)
         button(c,341f,89f,36f,36f,"×",art.colors[5],"wheelclose",enabled=spinAge<0) { modal="" }
         art.wheel(c,200f,373f,157f,spinAngle,economy.wheelRewards)

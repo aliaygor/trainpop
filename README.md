@@ -10,11 +10,13 @@ Open this repository in Android Studio. Android SDK 36 and JDK 17+ are required.
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-## Version 0.7
+## Version 0.8
 
 - Single axio / LET’S PLAY intro; the clipped duplicate Android launch logo is removed.
-- Matched six-color locomotive and carriage sprites with natural proportions and clear roof arrows.
-- Dense four-lane circulation starts with up to 160 real passengers, eight fixed-camera robot directions and a soft merge from four-wide queues on both sides.
+- Six premium steam locomotive/carriage texture pairs and clear roof arrows; coupled trains keep their carriage on arrival and departure.
+- Dense four-lane circulation starts with up to 176 real passengers. Incoming queues end above the compact loop; all passengers use one ground-depth draw order, with eight fixed-camera directions.
+- A station controller replaces numbered parking slots with selectable Coast, Valley, City and Night routes; dispatched trains reserve the chosen dock.
+- No white backing rims under buttons. Six rendered menu icons, explicit package contents and unavailable-purchase states.
 - Articulated conductor nods and waves independent arms; tapping it shows a welcome greeting.
 - Illustrated overhead garden, base twenty-second laps, reserved entry gaps and smooth closing of gaps after the feed ends.
 - Legacy saves migrate to the larger passenger demand while retaining level progress and economy.
@@ -51,9 +53,9 @@ Debug ads always use Google's official rewarded test unit. Rewards only apply in
 
 ## Art and audio
 
-`station.webp`, `conductor.webp` and `locomotive.webp` in `app/src/main/res/drawable-nodpi` are original assets generated with the built-in imagegen tool. Prompts are preserved in `docs/ART.md`. Gameplay trains use individually rendered palette sprites; long trains couple a separate matching carriage without stretching the engine image. New prompts are in `docs/ART-0.4.md`. Crowd robots have 48 original rendered sprites, and the conductor has six articulated parts. The overhead garden and all generation prompts are documented in `docs/ART-0.7.md`. UI primitives are drawn in `Art.kt`; no reference game's art is copied. WAV sounds are locally synthesized and original.
+`station.webp`, `conductor.webp` and `locomotive.webp` in `app/src/main/res/drawable-nodpi` are original assets generated with the built-in imagegen tool. Prompts are preserved in `docs/ART.md`. Gameplay trains use individually rendered palette sprites; long trains couple a separate matching carriage without stretching the engine image. New prompts are in `docs/ART-0.4.md`. Crowd robots have 48 original rendered sprites, and the conductor has six articulated parts. The overhead garden and robot prompts are documented in `docs/ART-0.7.md`; new trains/menu prompts are in `docs/ART-0.8.md`. UI primitives are drawn in `Art.kt`; no reference game's art is copied. WAV sounds are locally synthesized and original.
 
 ## Remaining polish
 
-Gameplay objects currently use shaded 2D drawings and 3D-looking raster sprites, not real 3D models. The conveyor holds up to 160 robots, with two four-wide incoming queues; unmatched robots keep circling. Only matching robots crossing the gate board. Production 3D assets, more complex level mechanics, device performance profiling, accessible native UI semantics and Play release setup remain ahead. Purchases and live rewarded ads are not ready for public release.
+Gameplay objects currently use shaded 2D drawings and 3D-looking raster sprites, not real 3D models. The conveyor holds up to 176 robots, with two four-wide incoming queues; unmatched robots keep circling. Only matching robots crossing the gate board. Production 3D assets, more complex level mechanics, device performance profiling, accessible native UI semantics and Play release setup remain ahead. Purchases and live rewarded ads are not ready for public release.
 

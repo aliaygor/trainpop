@@ -38,7 +38,7 @@ class Game(val level: Int) {
     private var feedClock = 0f
     private fun resetFlow() {
         passengers.clear()
-        robots.forEachIndexed { i, color -> passengers += Passenger(color, if(i<160) ((.94f-i/4*.025f)%1f+1f)%1f else -1f, i%8) }
+        robots.forEachIndexed { i, color -> passengers += Passenger(color, if(i<176) ((.84f-i/4*(1f/44f))%1f+1f)%1f else -1f, i%8) }
     }
     private var blockedFor = 0f
     val total: Int
@@ -70,11 +70,13 @@ class Game(val level: Int) {
             Direction.DOWN -> cell.x == base.x && cell.y > base.y
         }
     } } }
-    fun dispatch(id: Int): Result {
+    fun dispatch(id: Int, preferredSlot:Int?=null): Result {
         if (failed || completed) return Result.BUSY
         val t = yard.firstOrNull { it.id == id } ?: return Result.BUSY
         if (!canExit(t)) return Result.BLOCKED
-        val slot = (0 until platformCount).firstOrNull { platforms[it] == null && departing.none { t -> t.slot == it } } ?: return Result.FULL
+        val free=(0 until platformCount).filter { platforms[it]==null && departing.none { t -> t.slot==it } }
+        val slot=if(preferredSlot==null) free.firstOrNull() else preferredSlot.takeIf { it in free }
+        if(slot==null) return Result.FULL
         yard.remove(t); t.slot = slot; t.phase = TrainPhase.ARRIVING; t.progress = 0f
         platforms[slot] = t; moves++
         return Result.MOVED
@@ -101,7 +103,7 @@ class Game(val level: Int) {
             ordered.forEachIndexed { i,robot ->
                 val next=ordered[(i+1)%ordered.size]
                 val gap=if(ordered.size==1) 1f else (next.phase-robot.phase+1f)%1f
-                speed[robot]=if(!waitingForEntry && ordered.size<38) .05f+((gap-.025f).coerceAtLeast(0f)*.4f).coerceAtMost(.04f) else .05f
+                speed[robot]=if(!waitingForEntry && ordered.size<42) .05f+((gap-(1f/44f)).coerceAtLeast(0f)*.4f).coerceAtMost(.04f) else .05f
             }
         }
         circulating.forEach { robot ->
@@ -118,13 +120,13 @@ class Game(val level: Int) {
         }
         passengers.removeAll(removed.toSet())
         feedClock += dt
-        if(feedClock >= .09f && passengers.count { it.phase >= 0f } < 160) {
+        if(feedClock >= .09f && passengers.count { it.phase >= 0f } < 176) {
             val candidate=passengers.firstOrNull { it.phase<0f }
             candidate?.let { next ->
-                val entry=if(next.lane<4) .25f else .75f
+                val entry=if(next.lane<4) .38f else .62f
                 val clear=passengers.none { other ->
                     val distance=kotlin.math.abs(other.phase-entry)
-                    other.phase>=0f && other.lane%4==next.lane%4 && kotlin.math.min(distance,1f-distance)<.024f
+                    other.phase>=0f && other.lane%4==next.lane%4 && kotlin.math.min(distance,1f-distance)<.0218f
                 }
                 if(clear) { next.phase=entry;feedClock %= .09f }
             }
@@ -178,11 +180,11 @@ class Game(val level: Int) {
     }
     fun checkpoint(): String {
         fun trains(values: List<Train>) = values.joinToString(";") { t -> listOf(t.id,t.x,t.y,t.color,t.direction.ordinal,t.length,t.capacity,t.remaining,t.phase.ordinal,t.progress,t.slot).joinToString(",") }
-        return listOf("v3",level,boarded,moves,platformCount,elapsed,if(failed) 1 else 0,trains(yard),trains(platforms.filterNotNull()),trains(departing),robots.joinToString(","),passengers.joinToString(";") { "${it.color},${it.phase},${it.lane}" }).joinToString("|")
+        return listOf("v4",level,boarded,moves,platformCount,elapsed,if(failed) 1 else 0,trains(yard),trains(platforms.filterNotNull()),trains(departing),robots.joinToString(","),passengers.joinToString(";") { "${it.color},${it.phase},${it.lane}" }).joinToString("|")
     }
     companion object {
         fun restore(checkpoint:String):Game? = try {
-            val parts=checkpoint.split('|');require((parts.size==11 && parts[0]=="v1") || (parts.size==12 && parts[0] in setOf("v2","v3")))
+            val parts=checkpoint.split('|');require((parts.size==11 && parts[0]=="v1") || (parts.size==12 && parts[0] in setOf("v2","v3","v4")))
             val g=Game(parts[1].toInt());g.boarded=parts[2].toInt();g.moves=parts[3].toInt();g.platformCount=parts[4].toInt();g.elapsed=parts[5].toFloat();g.failed=parts[6]=="1"
             require(g.platformCount in 4..7 && g.boarded in 0..g.total)
             fun trains(s:String):List<Train> = if(s.isEmpty()) emptyList() else s.split(';').map { row->val v=row.split(',');require(v.size==11)
@@ -205,7 +207,7 @@ class Game(val level: Int) {
             val expected=IntArray(6);g.yard.forEach { expected[it.color]+=it.remaining };g.platforms.filterNotNull().forEach { expected[it.color]+=it.remaining }
             require(expected.indices.all { c->expected[c]==g.robots.count { it==c } })
             g.resetFlow()
-            if(parts[0] in setOf("v2","v3") && factor==1) {
+            if(parts[0]=="v4" && factor==1) {
                 g.passengers.clear()
                 if(parts[11].isNotEmpty()) parts[11].split(';').forEach { row -> val v=row.split(','); require(v.size==3)
                     g.passengers += Passenger(v[0].toInt(),v[1].toFloat(),v[2].toInt()).also { require(it.phase.isFinite() && it.phase >= -1f && it.phase < 1f && it.lane in 0..7) }

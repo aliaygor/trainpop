@@ -12,6 +12,7 @@ class Art {
     var trainSprites:List<Bitmap> = emptyList()
     var wagonSprites:List<Bitmap> = emptyList()
     var passengerSprites:List<Bitmap> = emptyList()
+    var menuSprites:Map<String,Bitmap> = emptyMap()
     var directionalPassengers:List<List<Bitmap>> = emptyList()
     fun shade(color: Int, f: Float) = Color.rgb((Color.red(color)*f).toInt().coerceIn(0,255), (Color.green(color)*f).toInt().coerceIn(0,255), (Color.blue(color)*f).toInt().coerceIn(0,255))
     fun box(c: Canvas, x: Float, y: Float, w: Float, h: Float, color: Int, r: Float = 16f) {
@@ -29,9 +30,9 @@ class Art {
         p.style=Paint.Style.FILL;p.color=color;c.drawText(s,x,y,p)
     }
     fun caption(c:Canvas,s:String,x:Float,y:Float,size:Float=14f,color:Int=ink) { p.typeface=Typeface.create("sans-serif",Typeface.NORMAL);p.textAlign=Paint.Align.CENTER;p.textSize=size;p.color=color;p.style=Paint.Style.FILL;p.shader=null;c.drawText(s,x,y,p) }
-    fun panel(c:Canvas,x:Float,y:Float,w:Float,h:Float,color:Int=0xFFFFD35B.toInt()) {
+    fun panel(c:Canvas,x:Float,y:Float,w:Float,h:Float,color:Int=0xFF285466.toInt()) {
         box(c,x,y+8,w,h,shade(color,.62f),28f); gradient(c,x,y,w,h,shade(color,1.1f),color,28f)
-        box(c,x+9,y+51,w-18,h-61,white,21f)
+        box(c,x+9,y+51,w-18,h-61,0xFFF1F2E9.toInt(),21f)
     }
     fun coin(c:Canvas,x:Float,y:Float,size:Float=1f) {
         c.save();c.translate(x,y);c.scale(size,size)
@@ -93,7 +94,7 @@ class Art {
             val engineHeight=if(coupled) 47f else length
             val engineY=if(coupled) -length/2+engineHeight/2 else 0f
             val sprite=trainSprites[index]
-            val engineWidth=min(width,engineHeight*sprite.width/sprite.height)
+            val engineWidth=width
             if(coupled) {
                 val wagon=wagonSprites.getOrNull(index) ?: sprite
                 val wagonY=length/2-17f
@@ -139,6 +140,11 @@ class Art {
         if(rewards!=null) { val path=Path();path.moveTo(x-10,y-r-10);path.lineTo(x+10,y-r-10);path.lineTo(x,y-r+17);path.close();p.color=ink;c.drawPath(path,p);circle(c,x,y-r-7,4f,colors[1]) }
     }
     fun icon(c:Canvas,kind:String,x:Float,y:Float,size:Float=1f) {
+        menuSprites[kind]?.let { sprite ->
+            val h=68f*size;val w=h*sprite.width/sprite.height
+            p.shader=null;p.alpha=255;p.isFilterBitmap=true
+            c.drawBitmap(sprite,null,RectF(x-w/2,y-h/2,x+w/2,y+h/2),p);return
+        }
         c.save();c.translate(x,y);c.scale(size,size)
         when(kind) {
             "coin","starter" -> coinPile(c,0f,9f,1.2f)
