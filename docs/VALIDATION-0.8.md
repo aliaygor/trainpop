@@ -16,4 +16,5 @@
 
 Görsel kaynakları ve tam prompt'lar: trainpop-v0.8-art.md.
 Satın alma bağlantı notu: trainpop-play-console-notu.md.
-`nSon kayıt kontrolü: seçilen hatta tren gönderildikten sonra kalıcı oturum v4 / seviye 2 / 16 binen yolcu / 1 hamle / başarısızlık yok olarak doğrulandı.
+
+Son kayıt kontrolü: seçilen hatta tren gönderildikten sonra kalıcı oturum v4 / seviye 2 / 16 binen yolcu / 1 hamle / başarısızlık yok olarak doğrulandı.
