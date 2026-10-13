@@ -12,6 +12,7 @@ class Art {
     var trainSprites:List<Bitmap> = emptyList()
     var wagonSprites:List<Bitmap> = emptyList()
     var passengerSprites:List<Bitmap> = emptyList()
+    var directionalPassengers:List<List<Bitmap>> = emptyList()
     fun shade(color: Int, f: Float) = Color.rgb((Color.red(color)*f).toInt().coerceIn(0,255), (Color.green(color)*f).toInt().coerceIn(0,255), (Color.blue(color)*f).toInt().coerceIn(0,255))
     fun box(c: Canvas, x: Float, y: Float, w: Float, h: Float, color: Int, r: Float = 16f) {
         p.shader=null; p.style=Paint.Style.FILL; p.color=color; c.drawRoundRect(x,y,x+w,y+h,r,r,p)
@@ -41,7 +42,17 @@ class Art {
     fun coinPile(c:Canvas,x:Float,y:Float,size:Float=1f) { c.save();c.translate(x,y);c.scale(size,size); for(i in 0..2) for(j in 0..(2-i/2)) coin(c,(i-1)*21f,j*-9f-i*4f,.75f);c.restore() }
     private val robotSprites=mutableMapOf<Int,Bitmap>()
     fun release() { robotSprites.values.forEach { it.recycle() };robotSprites.clear() }
-    fun robot(c:Canvas,x:Float,y:Float,color:Int,size:Float=1f,pose:Float=0f,conductor:Boolean=false) {
+    fun robot(c:Canvas,x:Float,y:Float,color:Int,size:Float=1f,pose:Float=0f,conductor:Boolean=false,facing:Float=0f) {
+        val colorIndex=colors.indexOf(color)
+        if(!conductor && colorIndex>=0 && directionalPassengers.size==8) {
+            val heading=((facing%360)+360)%360
+            val sector=(heading/45f).roundToInt()%8
+            val sprite=directionalPassengers[sector][colorIndex]
+            val h=50f*size;val w=h*sprite.width/sprite.height
+            p.shader=null;p.colorFilter=null;p.alpha=255;p.isFilterBitmap=true
+            c.drawBitmap(sprite,null,RectF(x-w/2,y-h+8f*size,x+w/2,y+8f*size),p)
+            return
+        }
         val index=colors.indexOf(color)
         if(!conductor && index>=0 && passengerSprites.size==6) {
             val sprite=passengerSprites[index]
@@ -57,7 +68,7 @@ class Art {
         p.shader=null;p.colorFilter=null;p.alpha=255;p.isFilterBitmap=true
         c.drawBitmap(sprite,null,RectF(x-30f*size,y-60f*size,x+30f*size,y+30f*size),p)
     }
-    private fun paintRobot(c:Canvas,x:Float,y:Float,color:Int,size:Float=1f,pose:Float=0f,conductor:Boolean=false) {
+    private fun paintRobot(c:Canvas,x:Float,y:Float,color:Int,size:Float=1f,pose:Float=0f,conductor:Boolean=false,facing:Float=0f) {
         c.save();c.translate(x,y);c.scale(size,size)
         p.color=0x26000000;c.drawOval(-14f,12f,14f,18f,p)
         box(c,-9f,8f,7f,7f,ink,3f);box(c,3f,8f,7f,7f,ink,3f)

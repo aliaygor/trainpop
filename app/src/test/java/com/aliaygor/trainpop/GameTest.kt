@@ -7,7 +7,13 @@ class GameTest {
         for(level in 1..200) {
             val g=Game(level);assertTrue(g.yard.size>=8)
             val cells=g.yard.flatMap { it.cells() };assertEquals(cells.size,cells.toSet().size)
-            for(id in g.solution) { assertEquals("Level $level train $id",Result.MOVED,g.dispatch(id));advance(g,24f);assertFalse(g.failed) }
+            for(id in g.solution) {
+                assertEquals("Level $level train $id",Result.MOVED,g.dispatch(id))
+                var waited=0f
+                while(waited<45f && (g.platforms.any { it?.id==id } || g.departing.any { it.id==id })) { g.update(.02f);waited+=.02f }
+                assertFalse(g.failed)
+                assertTrue("Level $level train $id did not finish boarding",g.platforms.none { it?.id==id })
+            }
             advance(g,2f);assertTrue("Level $level",g.completed);assertEquals(g.total,g.boarded)
         }
     }
@@ -19,15 +25,15 @@ class GameTest {
         val g=Game(1);assertEquals(Result.MOVED,g.dispatch(g.solution.first()));advance(g,.5f);assertEquals(0,g.boarded);advance(g,6f);assertTrue(g.boarded>0)
     }
     @Test fun fourWrongColorsCauseFailureAndRescueRestoresPlay() {
-        val g=Game(1);g.yard.clear();g.robots.clear();g.robots+=List(64){0}+List(16){1}
+        val g=Game(1);g.yard.clear();g.robots.clear();g.robots+=List(160){0}+List(16){1}
         for(i in 0..3) g.yard+=Train(i,i,0,1,Direction.DOWN,1,4)
         for(i in 0..3) assertEquals(Result.MOVED,g.dispatch(i))
-        advance(g,3f);assertTrue(g.failed);assertEquals(0,g.boarded);assertTrue(g.rescue());assertFalse(g.failed);assertEquals(5,g.platformCount);assertEquals(64,g.robots.size)
+        advance(g,3f);assertTrue(g.failed);assertEquals(0,g.boarded);assertTrue(g.rescue());assertFalse(g.failed);assertEquals(5,g.platformCount);assertEquals(160,g.robots.size)
     }
     @Test fun matchingFullPlatformsKeepBoarding() {
         val g=Game(1);g.yard.clear();g.robots.clear();g.robots+=List(16){0}
         for(i in 0..3) g.yard+=Train(i,i,0,0,Direction.DOWN,1,4)
-        repeat(4){g.dispatch(it)};advance(g,15f);assertFalse(g.failed);assertTrue(g.completed)
+        repeat(4){g.dispatch(it)};advance(g,24f);assertFalse(g.failed);assertTrue(g.completed)
     }
     @Test fun fullDispatchDoesNotLoseVehicle() {
         val g=Game(1);g.yard.clear();for(i in 0..4) g.yard+=Train(i,i,0,1,Direction.DOWN,1,4)
@@ -54,9 +60,9 @@ class GameTest {
         repeat(1000) {
             g.update(.02f)
             for(lane in 0..3) {
-                val phases=g.passengers.filter { it.lane==lane && it.phase>=0f }.map { it.phase }.sorted()
-                phases.zipWithNext().forEach { (a,b) -> assertTrue(b-a>=.049f) }
-                if(phases.size>1) assertTrue(1f-phases.last()+phases.first()>=.049f)
+                val phases=g.passengers.filter { it.lane%4==lane && it.phase>=0f }.map { it.phase }.sorted()
+                phases.zipWithNext().forEach { (a,b) -> assertTrue(b-a>=.023f) }
+                if(phases.size>1) assertTrue(1f-phases.last()+phases.first()>=.023f)
             }
         }
     }
@@ -65,7 +71,7 @@ class GameTest {
         val old=g.checkpoint().split('|').take(11).toMutableList();old[0]="v1"
         val restored=Game.restore(old.joinToString("|"))!!
         assertEquals(g.boarded,restored.boarded);assertEquals(g.robots,restored.robots)
-        assertEquals(g.robots.size,restored.passengers.size);assertTrue(restored.checkpoint().startsWith("v2|"))
+        assertEquals(g.robots.size,restored.passengers.size);assertTrue(restored.checkpoint().startsWith("v3|"))
     }
     @Test fun rotationSpeedIsIndependentOfUpdateFrequency() {
         val a=Game(2);val b=Game(2)
@@ -79,4 +85,28 @@ class GameTest {
         advance(restored,3f);assertFalse(restored.failed)
         assertNull(Game.restore("broken"))
     }
+    @Test fun firstFrameHasFourDenseRowsAcrossTheEntireLoop() {
+        val g=Game(2);val active=g.passengers.filter { it.phase>=0 }
+        assertEquals(160,active.size)
+        for(lane in 0..3) {
+            val phases=active.filter { it.lane%4==lane }.map { it.phase }.sorted()
+            assertEquals(40,phases.size)
+            phases.zipWithNext().forEach { (a,b) -> assertEquals(.025f,b-a,.0001f) }
+            assertEquals(.025f,1f-phases.last()+phases.first(),.0001f)
+        }
+    }
+    @Test fun legacyLowDensitySaveKeepsLevelAndTrainDemandWhenUpgraded() {
+        val original=Game(7);val parts=original.checkpoint().split('|').toMutableList();parts[0]="v2"
+        parts[7]=parts[7].split(';').joinToString(";") { row ->
+            val fields=row.split(',').toMutableList();fields[6]=(fields[6].toInt()/4).toString();fields[7]=(fields[7].toInt()/4).toString();fields.joinToString(",")
+        }
+        val oldColors=original.robots.chunked(4).map { it.first() };parts[10]=oldColors.joinToString(",")
+        parts[11]=oldColors.mapIndexed { i,color -> "$color,${if(i<32) ((.8f-i/4*.0625f)%1f+1f)%1f else -1f},${i%4}" }.joinToString(";")
+        val restored=Game.restore(parts.joinToString("|"))!!
+        assertEquals(7,restored.level);assertEquals(original.total,restored.total)
+        assertEquals(original.robots,restored.robots)
+        assertEquals(restored.total,restored.yard.sumOf { it.remaining })
+        assertEquals(160,restored.passengers.count { it.phase>=0 })
+    }
+
 }
