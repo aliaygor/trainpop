@@ -20,7 +20,7 @@ enum class Result { MOVED, BLOCKED, FULL, BUSY }
 data class Passenger(val color: Int, var phase: Float, val lane: Int)
 data class Boarding(val color: Int, val slot: Int, var age: Float = 0f, val lane: Int = 1)
 
-/** A bounded conveyor feeds a circulating crowd. Only robots crossing its gate may board. */
+/** Ordered color tickets make the next departure readable; occupied platforms are limited. */
 class Game(val level: Int) {
     val yard = mutableListOf<Train>()
     val platforms = arrayOfNulls<Train>(7)
@@ -91,35 +91,25 @@ class Game(val level: Int) {
             }
         }
         if(passengers.size != robots.size) resetFlow()
-        val removed = mutableListOf<Passenger>()
-        passengers.filter { it.phase >= 0f }.forEach { robot ->
-            robot.phase += dt * .05f
-            if(robot.phase >= 1f) {
-                robot.phase -= 1f
-                val t = platforms.filterNotNull().firstOrNull { it.phase == TrainPhase.PARKED && it.color == robot.color }
-                if(t != null) {
-                    removed += robot; check(robots.remove(robot.color)); t.remaining--; boarded++
-                    boarding += Boarding(robot.color, t.slot, lane = robot.lane)
-                    if(t.remaining == 0) { platforms[t.slot] = null; t.phase = TrainPhase.DEPARTING; t.progress = 0f; departing += t }
-                }
-            }
-        }
-        passengers.removeAll(removed.toSet())
+        // Ordered tickets: the head must board before tickets behind it can advance.
         feedClock += dt
-        if(feedClock >= .09f && passengers.count { it.phase >= 0f } < 64) {
-            passengers.firstOrNull { it.phase < 0f }?.let { next ->
-                val entry=if(next.lane<2) .25f else .75f
-                val clear=passengers.none { other ->
-                    val distance=kotlin.math.abs(other.phase-entry)
-                    other.phase>=0f && other.lane==next.lane && kotlin.math.min(distance,1f-distance)<.05f
-                }
-                if(clear) { next.phase=entry;feedClock %= .09f }
+        val head = robots.firstOrNull()
+        val ready = platforms.filterNotNull().firstOrNull { it.phase == TrainPhase.PARKED && it.color == head }
+        if (ready == null) feedClock = feedClock.coerceAtMost(.18f)
+        else while (feedClock >= .18f && robots.firstOrNull() == ready.color && ready.remaining > 0) {
+            feedClock -= .18f
+            robots.removeAt(0); passengers.removeAt(0)
+            ready.remaining--; boarded++
+            boarding += Boarding(ready.color, ready.slot)
+            if (ready.remaining == 0) {
+                platforms[ready.slot] = null; ready.phase = TrainPhase.DEPARTING
+                ready.progress = 0f; departing += ready
             }
         }
         val inTransit = platforms.any { it?.phase == TrainPhase.ARRIVING } || departing.isNotEmpty()
-        val activeColors = passengers.filter { it.phase >= 0f }.map { it.color }.toSet()
-        val locked = (0 until platformCount).all { platforms[it] != null } && activeColors.isNotEmpty() && platforms.none { it?.color in activeColors }
-        blockedFor = if(locked && !inTransit) blockedFor + dt else 0f
+        val locked = robots.isNotEmpty() && (0 until platformCount).all { platforms[it] != null } &&
+            platforms.none { it?.color == robots.first() }
+        blockedFor = if (locked && !inTransit) blockedFor + dt else 0f
         failed = blockedFor > 1.4f
         completed = yard.isEmpty() && robots.isEmpty() && platforms.all { it == null } && departing.isEmpty() && boarding.isEmpty()
     }

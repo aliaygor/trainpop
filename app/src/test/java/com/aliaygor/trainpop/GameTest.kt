@@ -38,27 +38,19 @@ class GameTest {
         fun checkDemand() { assertEquals(g.yard.sumOf { it.remaining }+g.platforms.filterNotNull().sumOf { it.remaining },g.robots.size);assertEquals(g.total,g.boarded+g.robots.size) }
         g.dispatch(g.solution.first());advance(g,1.1f);checkDemand();assertTrue(g.arrange());checkDemand();assertTrue(g.shuffle());checkDemand();assertTrue(g.rescue());checkDemand();if(g.vip()) checkDemand()
     }
-    @Test fun unmatchedRobotsCirculateWithoutChangingIdentity() {
-        val g=Game(2);val robot=g.passengers.first();val phase=robot.phase
-        advance(g,.4f);assertSame(robot,g.passengers.first());assertTrue(robot.phase>phase);assertEquals(0,g.boarded)
-        advance(g,6f);assertSame(robot,g.passengers.first());assertEquals(g.total,g.robots.size);assertFalse(g.failed)
+    @Test fun ticketsBehindHeadCannotBoardWrongTrain() {
+        val g=Game(1);g.robots.clear();g.robots+=listOf(0,1,1,1,1)
+        g.yard.clear();g.yard+=Train(99,0,0,1,Direction.UP,1,4)
+        g.dispatch(99);advance(g,4f)
+        assertEquals(0,g.boarded);assertEquals(listOf(0,1,1,1,1),g.robots)
+        assertFalse(g.failed)
     }
-    @Test fun onlyMatchingGateCrossingsBoardAndOtherPositionsStayContinuous() {
-        val g=Game(1);val id=g.solution.first();val color=g.yard.first { it.id==id }.color;g.dispatch(id)
-        val other=g.passengers[15];val previous=other.phase;advance(g,.9f)
-        assertTrue(g.boarded==0);assertSame(other,g.passengers[15]);assertTrue(other.phase!=previous)
-        advance(g,12f);assertTrue(g.boarded>0);assertTrue(g.boarding.all { it.color==color } || g.boarding.isEmpty())
-    }
-    @Test fun incomingRobotsLeaveSpaceAtTheirMergePoint() {
-        val g=Game(40)
-        repeat(1000) {
-            g.update(.02f)
-            for(lane in 0..3) {
-                val phases=g.passengers.filter { it.lane==lane && it.phase>=0f }.map { it.phase }.sorted()
-                phases.zipWithNext().forEach { (a,b) -> assertTrue(b-a>=.049f) }
-                if(phases.size>1) assertTrue(1f-phases.last()+phases.first()>=.049f)
-            }
-        }
+    @Test fun headTicketsBoardPromptlyAndStopAtNextColor() {
+        val g=Game(1);g.robots.clear();g.robots+=listOf(0,0,1,0)
+        g.yard.clear();g.yard+=Train(99,0,0,0,Direction.UP,1,4)
+        g.dispatch(99);advance(g,2f)
+        assertEquals(2,g.boarded);assertEquals(listOf(1,0),g.robots)
+        advance(g,3f);assertEquals(2,g.boarded)
     }
     @Test fun oldCheckpointMigratesWithoutLosingPassengers() {
         val g=Game(7);g.dispatch(g.solution.first());advance(g,.9f)
@@ -66,11 +58,6 @@ class GameTest {
         val restored=Game.restore(old.joinToString("|"))!!
         assertEquals(g.boarded,restored.boarded);assertEquals(g.robots,restored.robots)
         assertEquals(g.robots.size,restored.passengers.size);assertTrue(restored.checkpoint().startsWith("v2|"))
-    }
-    @Test fun rotationSpeedIsIndependentOfUpdateFrequency() {
-        val a=Game(2);val b=Game(2)
-        repeat(100) { a.update(.01f) };repeat(50) { b.update(.02f) }
-        a.passengers.zip(b.passengers).forEach { (x,y) -> assertEquals(x.phase,y.phase,.004f) }
     }
     @Test fun checkpointRestoresMovesInventoryAndDemand() {
         val g=Game(9);g.dispatch(g.solution.first());advance(g,1f)
