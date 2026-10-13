@@ -41,22 +41,36 @@ class Game(val level: Int) {
         robots.forEachIndexed { i, color -> passengers += Passenger(color, if(i<176) ((.84f-i/4*(1f/44f))%1f+1f)%1f else -1f, i%8) }
     }
     private var blockedFor = 0f
-    val total: Int
+    var total: Int
+        private set
     private val random = Random(level * 719 + 83)
     init {
-        val count = if (level == 1) 8 else (10 + level / 2).coerceAtMost(24)
-        val colors = if (level < 3) 3 else (3 + level / 5).coerceAtMost(6)
-        // Each new vehicle has a clear exit when placed. Reverse placement order is a solution.
-        repeat(2400) {
-            if (yard.size < count) {
-                val d = Direction.entries.random(random)
-                val len = if (random.nextFloat() < .42f) 2 else 1
-                val x = random.nextInt(if (d.dx != 0) 7 - len else 6)
-                val y = random.nextInt(if (d.dy != 0) 7 - len else 6)
-                val t = Train(yard.size, x, y, random.nextInt(colors), d, len, len * 16)
-                if (t.cells().none { cell -> yard.any { cell in it.cells() } } && canExit(t)) yard += t
+        val count = (8 + (level - 1) * 2).coerceAtMost(24)
+        val colors = when { level == 1 -> 3; level < 4 -> 4; level < 7 -> 5; else -> 6 }
+        // Reverse insertion is always a legal solution. Choose the candidate with
+        // the requested number of blocked exits instead of accepting sparse yards.
+        val target = ((count * (.20f + (level - 1).coerceAtMost(12) * .045f)).toInt()).coerceAtMost(count - 1)
+        var best = emptyList<Train>()
+        var bestScore = Int.MIN_VALUE
+        repeat(64) {
+            yard.clear()
+            repeat(600) {
+                if (yard.size < count) {
+                    val d = Direction.entries.random(random)
+                    val len = if (random.nextFloat() < .42f) 2 else 1
+                    val x = random.nextInt(if (d.dx != 0) 7 - len else 6)
+                    val y = random.nextInt(if (d.dy != 0) 7 - len else 6)
+                    val t = Train(yard.size, x, y, 0, d, len, len * 16)
+                    if (yard.none { other -> other.cells().any { it in t.cells() } } && canExit(t)) yard += t
+                }
             }
+            val blocked = yard.count { !canExit(it) }
+            val score = yard.size * 1000 - kotlin.math.abs(blocked - target) * 100
+            if (score > bestScore) { bestScore = score; best = yard.map { it.copy() } }
         }
+        yard.clear(); yard += best
+        val palette = (0 until colors).shuffled(random)
+        yard.forEachIndexed { i, t -> t.color = palette[i % colors] }
         solution += yard.asReversed().map { it.id }
         solution.forEach { id -> val t = yard.first { it.id == id }; repeat(t.capacity) { robots += t.color } }
         total = robots.size
@@ -186,7 +200,7 @@ class Game(val level: Int) {
         fun restore(checkpoint:String):Game? = try {
             val parts=checkpoint.split('|');require((parts.size==11 && parts[0]=="v1") || (parts.size==12 && parts[0] in setOf("v2","v3","v4")))
             val g=Game(parts[1].toInt());g.boarded=parts[2].toInt();g.moves=parts[3].toInt();g.platformCount=parts[4].toInt();g.elapsed=parts[5].toFloat();g.failed=parts[6]=="1"
-            require(g.platformCount in 4..7 && g.boarded in 0..g.total)
+            require(g.platformCount in 4..7 && g.boarded >= 0)
             fun trains(s:String):List<Train> = if(s.isEmpty()) emptyList() else s.split(';').map { row->val v=row.split(',');require(v.size==11)
                 Train(v[0].toInt(),v[1].toInt(),v[2].toInt(),v[3].toInt(),Direction.entries[v[4].toInt()],v[5].toInt(),v[6].toInt(),v[7].toInt(),TrainPhase.entries[v[8].toInt()],v[9].toFloat(),v[10].toInt()).also { require(it.color in 0..5 && it.remaining in 0..it.capacity) }
             }
@@ -194,7 +208,7 @@ class Game(val level: Int) {
             trains(parts[8]).forEach { require(it.slot in 0 until g.platformCount && g.platforms[it.slot]==null);g.platforms[it.slot]=it }
             g.departing+=trains(parts[9]);g.robots.clear();if(parts[10].isNotEmpty()) g.robots+=parts[10].split(',').map { it.toInt().also { c->require(c in 0..5) } }
             // Upgrade pre-density sessions while keeping level, coins and dispatched trains.
-            val factor=if(g.robots.size+g.boarded==g.total/4) 4 else 1
+            val factor=if((g.yard + g.platforms.filterNotNull() + g.departing).let { it.isNotEmpty() && it.all { t -> t.capacity <= 8 } }) 4 else 1
             if(factor==4) {
                 g.boarded*=4
                 val oldYard=g.yard.toList();g.yard.clear();g.yard+=oldYard.map { it.copy(capacity=it.capacity*4,remaining=it.remaining*4) }
@@ -202,7 +216,16 @@ class Game(val level: Int) {
                 val oldDeparting=g.departing.toList();g.departing.clear();g.departing+=oldDeparting.map { it.copy(capacity=it.capacity*4,remaining=it.remaining*4) }
                 val oldRobots=g.robots.toList();g.robots.clear();g.robots+=oldRobots.flatMap { List(4) { _ -> it } }
             }
-            require(g.robots.size+g.boarded==g.total)
+            // Saved sessions retain their original demand across generator upgrades.
+            g.total = g.robots.size + g.boarded
+            require(g.total > 0)
+            val remainingYard = g.yard.toList()
+            g.solution.clear()
+            while (g.yard.isNotEmpty()) {
+                val next = g.yard.firstOrNull { g.canExit(it) } ?: error("Blocked saved yard")
+                g.solution += next.id; g.yard.remove(next)
+            }
+            g.yard += remainingYard
             require(g.yard.sumOf { it.remaining }+g.platforms.filterNotNull().sumOf { it.remaining }==g.robots.size)
             val expected=IntArray(6);g.yard.forEach { expected[it.color]+=it.remaining };g.platforms.filterNotNull().forEach { expected[it.color]+=it.remaining }
             require(expected.indices.all { c->expected[c]==g.robots.count { it==c } })

@@ -147,13 +147,13 @@ class TrainView(private val activity:Activity):View(activity) {
         backdrop(c);header(c);logo(c,200f,143f)
         val entries=listOf("starter" to "Başlangıç","ads" to "Reklamsız","shop" to "Mağaza","supply" to "Tedarik","wheel" to "Döndür","daily" to "Günlük Giriş")
         entries.forEachIndexed { i,(kind,name)->
-            if((kind=="starter" && economy.starterOwned) || (kind=="ads" && economy.noAds)) return@forEachIndexed
+            if((kind=="starter" && economy.welcomeClaimed) || (kind=="ads" && economy.noAds)) return@forEachIndexed
             val x=if(i<3) 49f else 351f;val y=263f+(i%3)*94f
             art.circle(c,x,y+3,38f,0x40203442);art.circle(c,x,y,38f,0xFF24485E.toInt())
             art.circle(c,x,y,32f,0xFF346276.toInt())
             if(kind=="wheel") { val phase=(time%2f/.65f).coerceAtMost(1f);c.save();c.rotate(if(motion) phase*360 else 0f,x,y);art.icon(c,kind,x,y,1.05f);c.restore() } else art.icon(c,kind,x,y,1.05f)
             art.box(c,x-46,y+26,92f,25f,0x40203442,10f);art.box(c,x-46,y+23,92f,25f,0xFF24485E.toInt(),10f);art.label(c,name,x,y+41,if(name.length>10) 12f else 15f,Color.WHITE)
-            val badge=kind=="daily" && economy.dailyAvailable(day()) || kind=="supply" && economy.supplyStep(day())<5 || kind=="wheel" && economy.spins(day())>0
+            val badge=kind=="starter" && !economy.welcomeClaimed || kind=="daily" && economy.dailyAvailable(day()) || kind=="supply" && economy.supplyStep(day())<5 || kind=="wheel" && economy.spins(day())>0
             if(badge) { art.circle(c,x-30,y-27,11f,0xFFFF752C.toInt());art.label(c,"!",x-30,y-22,17f,Color.WHITE,true) }
             hit(x-47,y-40,94f,94f,kind) { open(kind) }
         }
@@ -203,31 +203,36 @@ class TrainView(private val activity:Activity):View(activity) {
     private fun slotX(slot:Int)=dockPosition(slot).x
     private fun yardPosition(t:Train):PointF { val cell=43f;return PointF(65f+(t.x+(if(t.direction.dx!=0) (t.length-1)/2f else 0f))*cell,523f+(t.y+(if(t.direction.dy!=0) (t.length-1)/2f else 0f))*cell) }
     private fun stationDocks(c:Canvas) {
-        art.gradient(c,0f,333f,400f,157f,0xFF24485C.toInt(),0xFF163348.toInt(),0f)
-        art.caption(c,"RAY KUMANDA",200f,348f,11f,0xFFB6D8D5.toInt())
-        art.caption(c,"Hat seç · Treni gönder",200f,497f,9f)
+        art.gradient(c,0f,333f,400f,166f,0xFFE4ECE8.toInt(),0xFFCAD8D8.toInt(),0f)
+        art.caption(c,"BİNİŞ İSTASYONU",200f,349f,11f,0xFF375963.toInt())
         for(i in 0..6) {
-            val point=dockPosition(i);val compact=i>=4;val w=if(compact) 113f else 166f;val h=if(compact) 27f else 46f
-            val x=point.x-w/2;val y=point.y-h/2;val unlocked=i<game.platformCount;val selected=i==selectedDock && unlocked
-            art.box(c,x,y,w,h,if(selected) 0xFF388A91.toInt() else 0xFF2D5265.toInt(),10f)
-            if(selected) { art.box(c,x+7,y+3,w-14,2f,0xFFFFD56A.toInt(),1f) }
-            val railY=point.y+4
-            art.line(c,x+10,railY-4,x+w-10,railY-4,0xFF92A7AF.toInt(),1.3f)
-            art.line(c,x+10,railY+5,x+w-10,railY+5,0xFF92A7AF.toInt(),1.3f)
-            for(j in 0..8) art.line(c,x+12+j*(w-24)/8,railY-6,x+12+j*(w-24)/8,railY+7,0x55718A96,1.5f)
-            if(!compact) art.caption(c,routeNames[i],point.x,y+12f,9f,if(selected) 0xFFFFD56A.toInt() else 0xFFBDD2DD.toInt())
-            val t=game.platforms[i]
-            if(!unlocked) art.label(c,"+ Ek hat",point.x,point.y+5,12f,0xFF85D6C4.toInt())
-            else if(t==null) art.caption(c,if(compact) "Hazır" else if(selected) "SEÇİLİ" else "Dokun ve seç",point.x,point.y+8,9f,0xFFBDD2DD.toInt())
-            if(t!=null && t.phase==TrainPhase.PARKED) {
-                art.box(c,point.x+36,point.y-6,39f,17f,art.colors[t.color],6f)
-                art.label(c,"${t.capacity-t.remaining}/${t.capacity}",point.x+55,point.y+6,10f,Color.WHITE,true)
-                if(!compact) { art.box(c,x+10,y+h-5,w-20,2f,0xFF173747.toInt(),1f);art.box(c,x+10,y+h-5,(w-20)*(t.capacity-t.remaining)/t.capacity,2f,art.colors[t.color],1f) }
+            val point=dockPosition(i);val compact=i>=4
+            val w=if(compact) 113f else 166f;val h=if(compact) 27f else 46f
+            val x=point.x-w/2;val y=point.y-h/2;val unlocked=i<game.platformCount
+            val selected=i==selectedDock && unlocked;val t=game.platforms[i]
+            art.box(c,x,y+3,w,h,0x223D6470,10f)
+            art.gradient(c,x,y,w,h,if(selected) 0xFF396C76.toInt() else 0xFFF8FAF4.toInt(),if(selected) 0xFF285361.toInt() else 0xFFE9EFEB.toInt(),10f)
+            val ink=if(selected) Color.WHITE else 0xFF41616A.toInt()
+            if(!compact) {
+                art.caption(c,routeNames[i],point.x,y+14,9f,ink)
+                art.circle(c,x+w-13,y+10,3f,if(t==null) 0xFF4ABE88.toInt() else art.colors[t.color])
             }
-            hit(x,if(compact) y-8f else y,w,if(compact) 44f else h,"route$i") { if(!unlocked) open("slot") else { selectedDock=i;if(t!=null) notice("${routeNames[i]} • ${t.remaining} yolcu bekliyor") } }
+            if(!unlocked) art.caption(c,"+ Yeni peron",point.x,point.y+4,11f,0xFF507B7D.toInt())
+            else if(t==null) art.caption(c,if(game.departing.any { it.slot==i }) "Tren ayrılıyor" else if(compact) "Hazır" else if(selected) "Tren bekleniyor" else "Boş peron",point.x,point.y+10,11f,ink)
+            else if(t.phase==TrainPhase.PARKED) {
+                art.caption(c,"${t.capacity-t.remaining}/${t.capacity}",point.x+53,point.y+9,11f,ink)
+                art.box(c,x+10,y+h-5,w-20,3f,0x334D727B,2f)
+                art.box(c,x+10,y+h-5,(w-20)*(t.capacity-t.remaining)/t.capacity,3f,art.colors[t.color],2f)
+            }
+            hit(x,if(compact) y-8 else y,w,if(compact) 44f else h,"route$i") {
+                when {
+                    !unlocked -> open("slot")
+                    t!=null -> notice("${routeNames[i]} • ${t.remaining} yolcu bekliyor")
+                    game.departing.any { it.slot==i } -> notice("Tren ayrılıyor; peron birazdan boşalacak.")
+                    else -> { selectedDock=i;haptic() }
+                }
+            }
         }
-        hit(11f,335f,95f,18f,"vipgate") { selectedBooster="vip";open("booster") }
-        art.caption(c,"★ EKSPRES",55f,348f,10f,art.colors[1])
     }
     private fun route(t:Train):PointF {
         val start=yardPosition(t);val p=t.progress
@@ -246,7 +251,7 @@ class TrainView(private val activity:Activity):View(activity) {
         art.box(c,118f,72f,164f,7f,0xFFB7CDD8.toInt(),5f);art.box(c,118f,72f,164f*game.boarded/game.total,7f,art.colors[4],5f)
         // Incoming lanes and the loop form a station conveyor, with its gate at bottom center.
         c.save();c.clipRect(0f,84f,400f,327f)
-        val path=Path();path.addOval(RectF(61f,179f,339f,299f),Path.Direction.CW);path.moveTo(61f,-20f);path.lineTo(61f,123f);path.moveTo(339f,-20f);path.lineTo(339f,123f)
+        val path=Path();path.addOval(RectF(61f,179f,339f,299f),Path.Direction.CW);path.moveTo(61f,-20f);path.lineTo(61f,118f);path.quadTo(61f,171f,100f,195f);path.moveTo(339f,-20f);path.lineTo(339f,118f);path.quadTo(339f,171f,300f,195f)
         art.p.style=Paint.Style.STROKE;art.p.strokeWidth=79f;art.p.color=0xFFFAFFFF.toInt();c.drawPath(path,art.p)
         art.p.strokeWidth=70f;art.p.color=0xFF727C87.toInt();c.drawPath(path,art.p)
         art.p.style=Paint.Style.FILL
@@ -340,7 +345,7 @@ class TrainView(private val activity:Activity):View(activity) {
         val x=(e.x-ox)/scale;val y=(e.y-oy)/scale
         when(e.actionMasked) {
             MotionEvent.ACTION_DOWN->{ touchY=y;dragged=false;pressed=hits.lastOrNull { it.rect.contains(x,y) };invalidate() }
-            MotionEvent.ACTION_MOVE->{ if(modal=="shop" && abs(y-touchY)>5) { shopScroll=(shopScroll+touchY-y).coerceIn(0f,160f);touchY=y;dragged=true;pressed=null;invalidate() } }
+            MotionEvent.ACTION_MOVE->{ if(modal=="shop" && abs(y-touchY)>5) { shopScroll=(shopScroll+touchY-y).coerceIn(0f,270f);touchY=y;dragged=true;pressed=null;invalidate() } }
             MotionEvent.ACTION_UP->{ val selected=pressed;pressed=null;if(!dragged && selected!=null && selected.rect.contains(x,y)) { audio.play("tap");selected.action();performClick() };invalidate() }
             MotionEvent.ACTION_CANCEL->{ pressed=null;invalidate() }
         }
@@ -354,7 +359,7 @@ class TrainView(private val activity:Activity):View(activity) {
         if(modal=="wheel") { wheelScreen(c);return }
         val title=when {
             modal.startsWith("purchase:")->productTitle(modal.substringAfter(':'))
-            else->when(modal) { "starter"->"Başlangıç Paketi";"ads"->"Reklamsız Paket";"daily"->"Günlük Bonus";"supply"->"Günlük İkmal";"settings"->"Ayarlar";"win"->"Harika!";"full"->"Boş yer yok";"restart"->"Yeniden Başlat";"leave"->"Ana Sayfa";"slot"->"Ek Hat";"booster"->when(selectedBooster) {"vip"->"VIP Ekspres";"arrange"->"Düzenle";else->"Karıştır"};"reward"->"Ödülün hazır!";else->"Train Pop" }
+            else->when(modal) { "starter"->"Başlangıç Hediyesi";"ads"->"Reklamsız Paket";"daily"->"Günlük Bonus";"supply"->"Günlük İkmal";"settings"->"Ayarlar";"win"->"Harika!";"full"->"Boş yer yok";"restart"->"Yeniden Başlat";"leave"->"Ana Sayfa";"slot"->"Ek Hat";"booster"->when(selectedBooster) {"vip"->"VIP Ekspres";"arrange"->"Düzenle";else->"Karıştır"};"reward"->"Ödülün hazır!";else->"Train Pop" }
         }
         val tall=modal=="daily" || modal=="supply" || modal=="settings"
         val y=if(tall) 120f else 213f;val h=if(tall) 626f else 420f
@@ -364,7 +369,8 @@ class TrainView(private val activity:Activity):View(activity) {
             modal=="daily"->daily(c,y)
             modal=="supply"->supply(c,y)
             modal=="settings"->settings(c,y)
-            modal=="starter" || modal=="ads" || modal.startsWith("purchase:")->purchase(c,y)
+            modal=="starter"->welcome(c,y)
+            modal=="ads" || modal.startsWith("purchase:")->purchase(c,y)
             modal=="reward"->{ reward?.let { rewardArt(c,it,200f,y+145);art.label(c,it.label(),200f,y+227,19f) };button(c,69f,y+315,262f,53f,"Harika!") { modal=rewardReturn } }
             modal=="win"->{
                 for(i in 0..19) { val xx=40f+(i*37%320);val yy=y+70f+(time*70+i*23)%180;art.box(c,xx,yy,5f,10f,art.colors[i%6],1f) }
@@ -418,36 +424,46 @@ class TrainView(private val activity:Activity):View(activity) {
         button(c,49f,y+390,142f,46f,"Ana Sayfa",art.colors[5]) { if(screen=="game") open("leave") else modal="" }
         button(c,209f,y+390,142f,46f,if(screen=="game") "Yeniden" else "Oyna") { if(screen=="game") open("restart") else start() }
         button(c,63f,y+463,274f,43f,"Satın Almaları Geri Yükle",art.colors[0]) { store.restore() }
-        art.caption(c,"AXIO • Train Pop 0.8",200f,y+555,13f)
+        art.caption(c,"AXIO • Train Pop ${BuildConfig.VERSION_NAME}",200f,y+555,13f)
         art.caption(c,if(BuildConfig.DEBUG) "Test reklamları etkin" else "",200f,y+581,11f)
     }
-    private fun productTitle(id:String)=when(id) { "starter_pack"->"Başlangıç Paketi";"remove_ads"->"Reklamsız";"ad_free_bundle"->"Reklamsız Paket";"coins_500"->"500 Altın";else->"3.000 Altın" }
+    private fun productTitle(id:String)=when(id) { "vip"->"VIP Ekspres";"arrange"->"Düzenle";"shuffle"->"Karıştır";"starter_pack"->"Başlangıç Paketi";"remove_ads"->"Reklamsız";"ad_free_bundle"->"Reklamsız Paket";"coins_500"->"500 Altın";else->"3.000 Altın" }
     private fun productReward(id:String)=when(id) {"starter_pack"->Reward(1000,2,2,2);"ad_free_bundle"->Reward(1500,1,1,1);"coins_500"->Reward(500);"coins_3000"->Reward(3000);else->Reward() }
+    private fun welcome(c:Canvas,y:Float) {
+        art.icon(c,"starter",200f,y+128,1.6f)
+        art.label(c,"Hoş geldin hediyesi",200f,y+209,23f)
+        art.caption(c,"150 altın + her güçlendirmeden 1 adet",200f,y+244,13f)
+        art.caption(c,"Ücretsiz · Bir kez alınabilir",200f,y+278,13f)
+        button(c,60f,y+331,280f,51f,if(economy.welcomeClaimed) "Alındı" else "Hediyemi al",enabled=!economy.welcomeClaimed) { showReward(economy.claimWelcome()) }
+    }
     private fun purchase(c:Canvas,y:Float) {
         val id=when(modal) {"starter"->"starter_pack";"ads"->"ad_free_bundle";else->modal.substringAfter(':') }
-        val r=productReward(id);art.icon(c,if(id.contains("ads") || id=="ad_free_bundle") "ads" else "coin",200f,y+134,1.9f)
+        val r=productReward(id);art.icon(c,if(id.contains("ads") || id=="ad_free_bundle") "ads" else "coin",200f,y+128,1.6f)
         if(id=="remove_ads") { art.caption(c,"Zorunlu reklamları kalıcı olarak kaldırır.",200f,y+206,14f);art.caption(c,"İsteğe bağlı ödül reklamları devam eder.",200f,y+232,12f) } else if(id=="ad_free_bundle") { art.label(c,"${r.coins} altın + reklamsız",200f,y+206,22f);art.caption(c,"Zorunlu reklamları kalıcı olarak kaldırır.",200f,y+232,12f) }
         else art.label(c,"${r.coins} altın",200f,y+206,26f)
         if(r.vip>0) { art.box(c,48f,y+247,304f,55f,0xFFE7D5F8.toInt(),12f);listOf("vip","arrange","shuffle").forEachIndexed { i,k->art.icon(c,k,89f+i*104,y+271,.66f);art.label(c,"×${r.vip}",115f+i*104,y+284,15f) } }
-        if(r.vip==0) { art.box(c,65f,y+263,270f,44f,0xFFE1E8D9.toInt(),12f);art.caption(c,if(id=="remove_ads") "Tek seferlik · Kalıcı erişim" else "Satın alınca altın bakiyene eklenir",200f,y+290,14f) }
+        if(r.vip==0) { art.box(c,65f,y+263,270f,44f,0xFFE1E8D9.toInt(),12f);art.caption(c,if(id=="remove_ads" && !store.available(id)) "Bu sürümde zorunlu reklam yok" else if(id=="remove_ads") "Tek seferlik · Kalıcı erişim" else "Satın alınca altın bakiyene eklenir",200f,y+290,13f) }
+        if(id=="ad_free_bundle" && !store.available(id)) art.caption(c,"Bu sürümde zorunlu reklam gösterilmiyor",200f,y+319,11f)
         val owned=id=="starter_pack" && economy.starterOwned || (id=="remove_ads" || id=="ad_free_bundle") && economy.noAds
-        button(c,60f,y+331,280f,51f,if(owned) "Alındı" else if(store.available(id)) store.price(id) else "Kullanılamıyor",enabled=!owned && store.available(id)) { store.buy(id) }
-        art.caption(c,if(store.available(id)) "Google Play ile güvenli satın alma" else "Bu ürün şu anda kullanılamıyor",200f,y+408,10f)
+        button(c,60f,y+331,280f,51f,if(owned) "Alındı" else if(store.available(id)) store.price(id) else "Altınla güçlendirme al",enabled=!owned) { if(store.available(id)) store.buy(id) else open("shop") }
+        art.caption(c,if(store.available(id)) "Google Play ile güvenli satın alma" else "Gerçek ödeme, Google Play yayınıyla açılacak",200f,y+408,10f)
     }
     private fun shop(c:Canvas,gold:Boolean) {
         art.gradient(c,0f,0f,400f,850f,0xFF214B5D.toInt(),0xFF132E42.toInt(),0f);header(c,false)
         // Header/settings actions must not leak into this modal.
         hits.clear();art.label(c,if(gold) "Altın" else "Mağaza",200f,118f,35f,Color.WHITE,true)
         button(c,342f,85f,36f,36f,"×",art.colors[5],"shopclose") { modal="" }
-        val ids=if(gold) listOf("coins_500","coins_3000") else listOf("remove_ads","ad_free_bundle","starter_pack","coins_500","coins_3000")
+        val ids=if(gold) listOf("coins_500","coins_3000") else listOf("vip","arrange","shuffle","remove_ads","ad_free_bundle","starter_pack")
         c.save();c.clipRect(12f,147f,388f,767f)
         ids.forEachIndexed { i,id->val yy=154f+i*144-shopScroll;val col=if(id=="starter_pack") 0xFF997C45.toInt() else if(id.contains("ads") || id=="ad_free_bundle") 0xFF655583.toInt() else 0xFF367D89.toInt()
-            art.gradient(c,18f,yy,364f,127f,art.shade(col,1.15f),col,18f);art.icon(c,if(id.contains("ads") || id=="ad_free_bundle") "ads" else "coin",64f,yy+45,1.15f)
+            art.gradient(c,18f,yy,364f,127f,art.shade(col,1.15f),col,18f);art.icon(c,if(economy.boosterCost(id)!=null) id else if(id.contains("ads") || id=="ad_free_bundle") "ads" else "coin",64f,yy+45,1.15f)
             art.label(c,productTitle(id),226f,yy+29,20f,Color.WHITE,true)
-            val r=productReward(id);art.caption(c,if(id=="remove_ads") "Zorunlu reklamları kaldır" else if(r.vip>0) "${r.coins} altın + güçlendirmeler" else "${r.coins} altın",226f,yy+57,12f,Color.WHITE)
+            val r=productReward(id);art.caption(c,if(economy.boosterCost(id)!=null) "1 adet · Altınla satın al" else if(id=="remove_ads") "Zorunlu reklamları kaldır" else if(r.vip>0) "${r.coins} altın + güçlendirmeler" else "${r.coins} altın",226f,yy+57,12f,Color.WHITE)
             val owned=id=="starter_pack" && economy.starterOwned || (id=="remove_ads" || id=="ad_free_bundle") && economy.noAds
             val hitBefore=hits.size
-            button(c,135f,yy+74,229f,36f,if(owned) "Alındı" else if(store.available(id)) store.price(id) else "İncele",id="buy$id",enabled=!owned) { open("purchase:$id") }
+            button(c,135f,yy+74,229f,36f,if(owned) "Alındı" else economy.boosterCost(id)?.let { "$it Altın · Satın al" } ?: if(store.available(id)) store.price(id) else "İncele",id="buy$id",enabled=!owned) {
+                if(economy.boosterCost(id)!=null) { if(economy.buyBooster(id)) { haptic();notice("+1 ${productTitle(id)} • Kalan ${economy.coins} altın") } else notice("Yeterli altın yok. Günlük ödüllerini alabilirsin.") } else open("purchase:$id")
+            }
             if(hits.size>hitBefore) { val old=hits.last();if(!old.rect.intersect(RectF(12f,147f,388f,767f))) hits.removeAt(hits.lastIndex) }
         };c.restore()
         button(c,60f,787f,280f,39f,"Reklam İzle · +50 Altın",art.colors[4],"adgold") { ads.show { showReward(economy.grantAdCoins()) } }

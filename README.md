@@ -10,7 +10,15 @@ Open this repository in Android Studio. Android SDK 36 and JDK 17+ are required.
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-## Version 0.8
+## Version 0.9
+
+- Connected queue inlets curve into the crowd loop; a legible boarding station replaces the rail controller.
+- Early levels increase from 8 trains / 3 colors / 1 blocked exit to 24 trains / 6 colors / 13 blocked exits at level 9. Candidate selection preserves a known unassisted solution.
+- Functional soft-currency booster shop with atomic balance/inventory updates, plus a separate one-time free welcome gift.
+- Paid Google Play offers explain setup status and link to the usable coin shop; they do not simulate receipts or prices.
+- Existing sessions retain their original demand across generator changes. See [validation notes](docs/VALIDATION-0.9.md).
+
+## Previous version 0.8
 
 - Single axio / LET’S PLAY intro; the clipped duplicate Android launch logo is removed.
 - Six premium steam locomotive/carriage texture pairs and clear roof arrows; coupled trains keep their carriage on arrival and departure.

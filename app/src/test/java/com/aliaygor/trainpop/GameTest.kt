@@ -116,4 +116,31 @@ class GameTest {
         assertTrue(g.yard.any { it.id==next });assertEquals(Result.MOVED,g.dispatch(next,0))
     }
 
+    @Test fun earlyLevelsIncreaseDensityColorsAndBlockedExits() {
+        var previousBlocked=-1
+        for(level in 1..9) {
+            val g=Game(level)
+            assertEquals("Train count at level $level",8+(level-1)*2,g.yard.size)
+            val colors=g.yard.map { it.color }.toSet().size
+            assertEquals(when {level==1->3;level<4->4;level<7->5;else->6},colors)
+            val blocked=g.yard.count { !g.canExit(it) }
+            println("Level $level: ${g.yard.size} trains, $colors colors, $blocked blocked exits")
+            assertTrue("Blocked exits must rise at level $level",blocked>previousBlocked)
+            previousBlocked=blocked
+        }
+    }
+    @Test fun savesRetainDemandFromOlderLevelLayouts() {
+        val g=Game(3)
+        val oldTrain=g.yard.removeAt(0)
+        repeat(oldTrain.capacity) { g.robots.remove(oldTrain.color) }
+        // This represents an older generator with fewer trains, not a paid booster.
+        val parts=g.checkpoint().split('|').toMutableList()
+        parts[11]=""
+        parts[0]="v3"
+        val restored=Game.restore(parts.joinToString("|"))!!
+        assertEquals(g.robots.size,restored.total)
+        assertEquals(g.yard,restored.yard)
+        assertEquals(g.robots,restored.robots)
+        assertEquals(restored.yard.size,restored.solution.size)
+    }
 }

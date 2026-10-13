@@ -14,6 +14,20 @@ class Economy(private val store: Ledger) {
     val dailyRewards = listOf(Reward(50), Reward(shuffle = 1), Reward(80), Reward(vip = 1), Reward(150), Reward(arrange = 1), Reward(400, arrange = 1))
     val wheelRewards = listOf(Reward(150), Reward(shuffle = 1), Reward(30), Reward(vip = 1), Reward(500), Reward(arrange = 1))
     val coins get() = store.int("coins", 200)
+    val welcomeClaimed get() = store.int("welcome.claimed") == 1
+    fun claimWelcome(): Reward? {
+        if (welcomeClaimed) return null
+        val reward = Reward(150, 1, 1, 1)
+        store.write(amounts(reward) + ("welcome.claimed" to 1))
+        return reward
+    }
+    fun boosterCost(key: String): Int? = when(key) { "vip" -> 150; "arrange" -> 120; "shuffle" -> 100; else -> null }
+    fun buyBooster(key: String): Boolean {
+        val cost = boosterCost(key) ?: return false
+        if (coins < cost) return false
+        store.write(mapOf("coins" to coins - cost, key to inventory(key) + 1))
+        return true
+    }
     val level get() = store.int("level", 1)
     fun inventory(key: String) = store.int(key, 2)
     fun dailyAvailable(day: String) = store.string("daily.date") != day

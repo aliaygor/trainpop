@@ -22,4 +22,17 @@ class EconomyTest {
         val restored=Economy(ledger);assertEquals(1,restored.inventory("vip"));assertEquals(2,restored.inventory("shuffle"));assertEquals(200,restored.coins)
     }
     @Test fun winsAndReceiptsAreIdempotent() { val e=Economy(MemoryLedger());assertTrue(e.win(1));assertFalse(e.win(1));assertEquals(250,e.coins);assertTrue(e.grantPurchase("starter_pack","receipt"));assertFalse(e.grantPurchase("starter_pack","receipt"));assertEquals(1250,e.coins);assertTrue(e.starterOwned);assertFalse(e.grantPurchase("unknown","other"));assertTrue(e.grantPurchase("remove_ads","ads"));assertTrue(e.noAds) }
+    @Test fun coinShopDebitsAndPersistsOnlyTheBoughtBooster() {
+        val ledger=MemoryLedger();val e=Economy(ledger)
+        assertTrue(e.buyBooster("shuffle"));assertEquals(100,e.coins)
+        assertEquals(3,Economy(ledger).inventory("shuffle"));assertEquals(2,e.inventory("vip"))
+        assertFalse(e.buyBooster("vip"));assertEquals(100,e.coins);assertEquals(2,e.inventory("vip"))
+        assertFalse(e.buyBooster("unknown"));assertFalse(e.noAds);assertFalse(e.starterOwned)
+    }
+    @Test fun freeWelcomeIsOnceAndDoesNotGrantPaidEntitlements() {
+        val ledger=MemoryLedger();val e=Economy(ledger)
+        assertEquals(Reward(150,1,1,1),e.claimWelcome());assertEquals(350,e.coins)
+        val restored=Economy(ledger);assertTrue(restored.welcomeClaimed);assertNull(restored.claimWelcome())
+        assertEquals(3,restored.inventory("vip"));assertFalse(restored.noAds);assertFalse(restored.starterOwned)
+    }
 }
