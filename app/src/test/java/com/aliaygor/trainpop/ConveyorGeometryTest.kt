@@ -8,7 +8,7 @@ class ConveyorGeometryTest {
     @Test fun wrapAndMergePointsAreContinuous() {
         val before=ConveyorGeometry.position(.99999f,1);val after=ConveyorGeometry.position(0f,1)
         assertTrue(hypot(before.x-after.x,before.y-after.y)<.02f)
-        assertEquals(67f,ConveyorGeometry.position(.25f,1).x,.01f)
+        assertEquals(69f,ConveyorGeometry.position(.25f,1).x,.01f)
         assertEquals(205f,ConveyorGeometry.position(.75f,2).y,.01f)
     }
     @Test fun bendsKeepNearlyTheSameDistancePerFrame() {

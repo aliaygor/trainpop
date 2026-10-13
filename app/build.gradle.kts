@@ -3,7 +3,7 @@ android {
     namespace = "com.aliaygor.trainpop"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.aliaygor.trainpop"; minSdk = 24; targetSdk = 36; versionCode = 5; versionName = "0.5.0"
+        applicationId = "com.aliaygor.trainpop"; minSdk = 24; targetSdk = 36; versionCode = 6; versionName = "0.6.0"
         manifestPlaceholders["admobAppId"] = providers.gradleProperty("TRAINPOP_ADMOB_APP_ID").getOrElse("ca-app-pub-3940256099942544~3347511713")
         buildConfigField("String", "REWARDED_AD_ID", "\"${providers.gradleProperty("TRAINPOP_REWARDED_AD_ID").getOrElse("")}\"")
         buildConfigField("String", "BILLING_PUBLIC_KEY", "\"${providers.gradleProperty("TRAINPOP_BILLING_PUBLIC_KEY").getOrElse("")}\"")

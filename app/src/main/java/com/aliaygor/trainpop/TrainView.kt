@@ -17,6 +17,7 @@ class TrainView(private val activity:Activity):View(activity) {
     private val station=BitmapFactory.decodeResource(resources,R.drawable.station)
     private val conductor=BitmapFactory.decodeResource(resources,R.drawable.conductor)
     private val trainSprites=listOf(R.drawable.train_blue,R.drawable.train_yellow,R.drawable.train_pink,R.drawable.train_purple,R.drawable.train_green,R.drawable.train_orange).map { BitmapFactory.decodeResource(resources,it) }
+    private val robotSprites=listOf(R.drawable.robot_cyan_v6,R.drawable.robot_yellow_v6,R.drawable.robot_pink_v6,R.drawable.robot_purple_v6,R.drawable.robot_green_v6,R.drawable.robot_orange_v6).map { BitmapFactory.decodeResource(resources,it) }
     private val wagonSprites=listOf(R.drawable.wagon_blue,R.drawable.wagon_yellow,R.drawable.wagon_pink,R.drawable.wagon_purple,R.drawable.wagon_green,R.drawable.wagon_orange).map { BitmapFactory.decodeResource(resources,it) }
     private var game=Game.restore(prefs.getString("session","") ?: "")?.takeIf { it.level==economy.level } ?: Game(economy.level)
     private var screen="splash"
@@ -24,6 +25,8 @@ class TrainView(private val activity:Activity):View(activity) {
     private var time=0f
     private var last=0L
     private var flowDelta=0f
+    private data class Merge(val start:PointF,var age:Float=0f)
+    private val merges=java.util.IdentityHashMap<Passenger,Merge>()
     private var active=true
     private var scale=1f
     private var ox=0f
@@ -37,7 +40,7 @@ class TrainView(private val activity:Activity):View(activity) {
     private var shakeId=-1
     private var shakeUntil=0f
     private var hintId=-1
-    private val ticketPositions=java.util.IdentityHashMap<Passenger,PointF>()
+    private val waitingY=java.util.IdentityHashMap<Passenger,Float>()
     private var lastBoarded=0
     private var spinAge=-1f
     private var spinIndex=0
@@ -57,12 +60,12 @@ class TrainView(private val activity:Activity):View(activity) {
         isFocusable=true;contentDescription="Train Pop"
         economy.finishSpin()?.let { reward=it;rewardReturn="wheel";modal="reward" }
         audio.effects=effects
-        art.trainSprites=trainSprites;art.wagonSprites=wagonSprites
+        art.trainSprites=trainSprites;art.wagonSprites=wagonSprites;art.passengerSprites=robotSprites
     }
     private fun day()=java.text.SimpleDateFormat("yyyy-MM-dd",java.util.Locale.US).format(java.util.Date())
     fun pause() { active=false;last=0;audio.music(false);if(screen=="game" && !game.completed) prefs.edit().putString("session",game.checkpoint()).apply() }
     fun resume() { active=true;last=0;audio.music(music);invalidate();store.restore(false) }
-    fun release() { ads.release();art.release();audio.release();store.release();station.recycle();conductor.recycle();trainSprites.forEach { it.recycle() };wagonSprites.forEach { it.recycle() } }
+    fun release() { ads.release();art.release();audio.release();store.release();station.recycle();conductor.recycle();trainSprites.forEach { it.recycle() };wagonSprites.forEach { it.recycle() };robotSprites.forEach { it.recycle() } }
     fun back() {
         if(spinAge>=0 || ads.showing) return
         when { modal.startsWith("purchase:") -> modal="shop"; modal=="reward"->modal=rewardReturn;modal=="full" -> Unit; modal.isNotEmpty()->modal=""; screen=="game"->modal="leave";else->activity.finish() }
@@ -70,7 +73,7 @@ class TrainView(private val activity:Activity):View(activity) {
     }
     private fun notice(s:String) { activity.runOnUiThread { toast=s;toastUntil=time+3f;invalidate() } }
     private fun open(name:String) { modal=name;shopScroll=0f;pressed=null }
-    private fun start(fresh:Boolean=true) { if(fresh || game.level!=economy.level || game.completed) game=Game(economy.level);screen="game";modal=if(game.failed) "full" else "";hintId=-1;lastBoarded=game.boarded;ticketPositions.clear() }
+    private fun start(fresh:Boolean=true) { if(fresh || game.level!=economy.level || game.completed) game=Game(economy.level);screen="game";modal=if(game.failed) "full" else "";hintId=-1;lastBoarded=game.boarded;waitingY.clear();merges.clear() }
     private fun showReward(r:Reward?) { if(r!=null) { reward=r;rewardReturn=if(modal in setOf("wheel","daily","supply","shop","gold")) modal else "";modal="reward";audio.play("win") } else notice("Bu ödül zaten alındı.") }
     private fun haptic() { if(vibration) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }
     private fun hit(x:Float,y:Float,w:Float,h:Float,id:String,action:()->Unit) { hits+=Hit(RectF(x,y,x+w,y+h),id,action) }
@@ -184,30 +187,41 @@ class TrainView(private val activity:Activity):View(activity) {
         iconButton(c,16f,24f,"restart") { open("restart") };iconButton(c,342f,24f,"pause") { open("settings") }
         art.label(c,"Seviye ${game.level}",200f,51f,24f,Color.WHITE,true)
         art.box(c,118f,72f,164f,7f,0xFFB7CDD8.toInt(),5f);art.box(c,118f,72f,164f*game.boarded/game.total,7f,art.colors[4],5f)
-        // A departure board presents upcoming tickets, with no circulating crowd.
-        art.box(c,17f,101f,366f,217f,0x30314E66,23f)
-        art.gradient(c,17f,97f,366f,217f,0xFFFDFBF4.toInt(),0xFFE8F0F3.toInt(),23f)
-        art.box(c,17f,97f,366f,43f,0xFF203E56.toInt(),23f)
-        art.box(c,17f,119f,366f,21f,0xFF203E56.toInt(),0f)
-        art.label(c,"KALKIŞ PANOSU",126f,125f,16f,Color.WHITE)
-        art.caption(c,"${game.boarded} / ${game.total}",328f,125f,13f,0xFFBCD6E4.toInt())
-        art.caption(c,"SIRADAKİ BİLETLER",104f,162f,10f,0xFF647D8E.toInt())
-        val head = game.robots.firstOrNull()
-        val matching = game.platforms.any { it?.phase==TrainPhase.PARKED && it.color==head }
-        art.box(c,260f,148f,109f,21f,if(matching) 0xFFD7F1DF.toInt() else 0xFFE2E9EE.toInt(),8f)
-        art.caption(c,if(matching) "Biniş başladı" else "Tren bekleniyor",314f,163f,10f)
-        ticketPositions.keys.removeAll { key -> game.passengers.none { it===key } }
-        c.save();c.clipRect(27f,173f,373f,271f)
-        game.passengers.take(14).forEachIndexed { i,ticket ->
-            val target=PointF(52f+(i%7)*49f,195f+(i/7)*47f)
-            val old=ticketPositions[ticket] ?: PointF(target.x+40f,target.y)
-            val amount=1f-exp(-flowDelta*15f)
-            val xx=old.x+(target.x-old.x)*amount;val yy=old.y+(target.y-old.y)*amount
-            ticketPositions[ticket]=PointF(xx,yy)
-            drawTicket(c,xx,yy,ticket.color,if(i==0) 1.08f else 1f)
+        // Incoming lanes and the loop form a station conveyor, with its gate at bottom center.
+        c.save();c.clipRect(0f,84f,400f,327f)
+        val path=Path();path.addOval(RectF(61f,119f,339f,291f),Path.Direction.CW);path.moveTo(61f,-20f);path.lineTo(61f,205f);path.moveTo(339f,-20f);path.lineTo(339f,205f)
+        art.p.style=Paint.Style.STROKE;art.p.strokeWidth=79f;art.p.color=0xFFFAFFFF.toInt();c.drawPath(path,art.p)
+        art.p.strokeWidth=70f;art.p.color=0xFF738B9B.toInt();c.drawPath(path,art.p)
+        art.p.style=Paint.Style.FILL
+        art.box(c,159f,305f,82f,13f,0xFFFFD056.toInt(),4f)
+        c.restore()
+        c.save();c.clipRect(0f,84f,400f,326f)
+        val waiting=game.passengers.filter { it.phase<0f }
+        waitingY.keys.removeAll { key -> game.passengers.none { it===key } };merges.keys.removeAll { key -> game.passengers.none { it===key } }
+        waiting.forEachIndexed { i,robot ->
+            val left=robot.lane<2;val target=205f-(i/4)*17f
+            val old=waitingY[robot] ?: target
+            val yy=old+(target-old).coerceIn(-flowDelta*35f,flowDelta*35f);waitingY[robot]=yy
+            val xx=if(left) 85f-robot.lane*16f else 339f+(robot.lane-2)*16f
+            if(yy>64f) art.robot(c,xx,yy,art.colors[robot.color],.59f)
+        }
+        game.passengers.filter { it.phase>=0f }.sortedBy { queuePosition(it.phase,it.lane).y }.forEach { robot ->
+            val target=queuePosition(robot.phase,robot.lane)
+            waitingY.remove(robot)?.let { yy -> merges[robot]=Merge(PointF(if(robot.lane<2) 85f-robot.lane*16f else 339f+(robot.lane-2)*16f,yy)) }
+            val transition=merges[robot]
+            val pos=if(transition!=null) {
+                transition.age+=flowDelta;val u=(transition.age/.7f).coerceIn(0f,1f);val q=u*u*(3-2*u)
+                if(u>=1f) merges.remove(robot)
+                PointF(transition.start.x+(target.x-transition.start.x)*q,transition.start.y+(target.y-transition.start.y)*q)
+            } else target
+            art.robot(c,pos.x,pos.y+sin(robot.phase*PI.toFloat()*32f+robot.lane)*.7f,art.colors[robot.color],.59f)
         }
         c.restore()
-        art.caption(c,if(game.moves==0) "Ok yönü açık treni seç • İlk biletin rengiyle eşleştir" else "Öndeki bilet, aynı renk perondaki trene biner",200f,294f,11f)
+        // The island inside the moving crowd stays visually quiet.
+        art.box(c,145f,177f,110f,51f,0xDAFAF5DF.toInt(),18f)
+        art.label(c,"${game.robots.size}",200f,203f,25f)
+        art.caption(c,"robot bekliyor",200f,219f,10f)
+        if(game.level==1 && game.moves==0) art.caption(c,"Renkleri eşleştir • Çıkışı açık trenlere dokun",200f,98f,11f)
         art.box(c,0f,333f,400f,99f,0xFF6C7A94.toInt(),0f)
         art.label(c,"VIP",27f,359f,12f,art.colors[1]);art.box(c,11f,367f,33f,44f,0xFF526078.toInt(),7f)
         hit(7f,337f,40f,82f,"vipgate") { selectedBooster="vip";open("booster") }
@@ -219,7 +233,7 @@ class TrainView(private val activity:Activity):View(activity) {
             else if(game.platforms[i]==null) art.caption(c,"${i+1}",x,383f,14f,0xFFC9D6E5.toInt())
         }
         art.line(c,0f,434f,400f,434f,Color.WHITE,4f)
-        art.caption(c,"TREN DEPOSU  •  ${game.yard.size} tren kaldı",200f,455f,12f)
+        art.caption(c,"Aynı renk robotları toplamak için tren gönder",200f,455f,12f)
         for(side in listOf(17f,383f)) {
             art.line(c,side-3,478f,side-3,744f,0x55A5B6C9,1.3f);art.line(c,side+3,478f,side+3,744f,0x55A5B6C9,1.3f)
             for(i in 0..17) art.line(c,side-5,482f+i*15,side+5,482f+i*15,0x44A5B6C9,2f)
@@ -247,10 +261,7 @@ class TrainView(private val activity:Activity):View(activity) {
             if(t.phase==TrainPhase.PARKED) { art.box(c,pos.x-16,411f,32f,17f,art.colors[t.color],5f);art.label(c,"${t.remaining}",pos.x,424f,13f,Color.WHITE,true) }
         }
         game.departing.forEach { t->val sx=if(t.slot<0) 26f else slotX(t.slot);art.train(c,sx+(430-sx)*t.progress,376f,art.colors[t.color],47f,27f,90f,false) }
-        game.boarding.forEach { b ->
-            val q=(b.age/.5f).coerceAtMost(1f);val eased=q*q*(3-2*q)
-            drawTicket(c,52f+(slotX(b.slot)-52f)*eased,195f+(376f-195f)*eased,b.color,1f-q*.65f)
-        }
+        game.boarding.forEach { b->val q=(b.age/.5f).coerceAtMost(1f);val startY=291f+(b.lane-1.5f)*16f;val eased=q*q*(3-2*q);art.robot(c,200f+(slotX(b.slot)-200)*eased,startY+(367-startY)*eased,art.colors[b.color],.55f*(1-q*.4f)) }
         val names=listOf("VIP","Düzenle","Karıştır");val keys=listOf("vip","arrange","shuffle")
         keys.forEachIndexed { i,key->val x=20f+i*126;val yy=765f;val down=pressed?.id=="boost$key";val offset=if(down) 4f else 0f
             val col=if(i==0) 0xFFFFBD43.toInt() else if(i==1) 0xFF8F83ED.toInt() else 0xFF42B9E7.toInt()
@@ -269,20 +280,12 @@ class TrainView(private val activity:Activity):View(activity) {
     private fun useBooster() {
         val key=selectedBooster
         val applied=economy.consume(key) { when(key) { "vip"->game.vip();"arrange"->game.arrange();else->game.shuffle() } }
-        if(applied) { modal="";audio.play("depart");haptic();notice(when(key) { "vip"->"VIP ekspres yola çıktı!";"arrange"->"Biletler bekleyen trene yönlendirildi.";else->"Tren renkleri yeniden düzenlendi." }) }
+        if(applied) { modal="";audio.play("depart");haptic();notice(when(key) { "vip"->"VIP ekspres yola çıktı!";"arrange"->"Robotlar bekleyen trene yönlendirildi.";else->"Tren renkleri yeniden düzenlendi." }) }
         else notice("Şu anda uygun tren yok; hakkın korunuyor.")
     }
-    private fun drawTicket(c:Canvas,x:Float,y:Float,color:Int,size:Float) {
-        c.save();c.translate(x,y);c.scale(size,size)
-        val col=art.colors[color]
-        art.box(c,-20f,-14f+3f,40f,29f,0x25334B60,7f)
-        art.gradient(c,-20f,-14f,40f,29f,art.shade(col,1.13f),col,7f)
-        art.circle(c,-20f,0f,3f,0xFFF1F4EF.toInt());art.circle(c,20f,0f,3f,0xFFF1F4EF.toInt())
-        art.line(c,10f,-9f,10f,10f,0x88FFFFFF.toInt(),1f)
-        art.box(c,-12f,-7f,15f,11f,0xEEFFFFFF.toInt(),3f)
-        art.line(c,-9f,8f,0f,8f,Color.WHITE,2f)
-        art.circle(c,-9f,5f,1.5f,art.ink);art.circle(c,0f,5f,1.5f,art.ink)
-        c.restore()
+    private fun queuePosition(phase:Float,lane:Int):PointF {
+        val point=ConveyorGeometry.position(phase,lane)
+        return PointF(point.x,point.y)
     }
     override fun onTouchEvent(e:MotionEvent):Boolean {
         val x=(e.x-ox)/scale;val y=(e.y-oy)/scale
@@ -366,7 +369,7 @@ class TrainView(private val activity:Activity):View(activity) {
         button(c,49f,y+390,142f,46f,"Ana Sayfa",art.colors[5]) { if(screen=="game") open("leave") else modal="" }
         button(c,209f,y+390,142f,46f,if(screen=="game") "Yeniden" else "Oyna") { if(screen=="game") open("restart") else start() }
         button(c,63f,y+463,274f,43f,"Satın Almaları Geri Yükle",art.colors[0]) { store.restore() }
-        art.caption(c,"AXIO • Train Pop 0.5",200f,y+555,13f)
+        art.caption(c,"AXIO • Train Pop 0.6",200f,y+555,13f)
         art.caption(c,if(BuildConfig.DEBUG) "Test reklamları etkin" else "",200f,y+581,11f)
     }
     private fun productTitle(id:String)=when(id) { "starter_pack"->"Başlangıç Paketi";"remove_ads"->"Reklamsız";"ad_free_bundle"->"Reklamsız Paket";"coins_500"->"500 Altın";else->"3.000 Altın" }
@@ -414,7 +417,7 @@ class TrainView(private val activity:Activity):View(activity) {
     }
     private fun booster(c:Canvas,y:Float) {
         val key=selectedBooster;art.icon(c,key,200f,y+137,1.8f)
-        val lines=when(key) {"vip"->listOf("Sıradaki renkte bir treni", "çıkışı kapalı olsa da gönder.");"arrange"->listOf("Bekleyen bir trenin biletlerini", "sıranın başına taşı.");else->listOf("Depodaki trenlerin renklerini", "ve bilet sırasını yeniden düzenle.") }
+        val lines=when(key) {"vip"->listOf("Sıradaki renkte bir treni", "çıkışı kapalı olsa da gönder.");"arrange"->listOf("Bekleyen bir trenin robotlarını", "biniş kapısına yönlendir.");else->listOf("Depodaki trenlerin renklerini", "ve robot sırasını yeniden düzenle.") }
         lines.forEachIndexed { i,s->art.caption(c,s,200f,y+216+i*26,16f) }
         art.label(c,"Kalan: ${economy.inventory(key)}",200f,y+284,20f)
         button(c,61f,y+331,278f,51f,if(economy.inventory(key)>0) "Kullan" else "Reklam İzle · +1 Hak") {

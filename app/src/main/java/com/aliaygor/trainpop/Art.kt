@@ -11,6 +11,7 @@ class Art {
     val white = 0xFFFFFEF7.toInt()
     var trainSprites:List<Bitmap> = emptyList()
     var wagonSprites:List<Bitmap> = emptyList()
+    var passengerSprites:List<Bitmap> = emptyList()
     fun shade(color: Int, f: Float) = Color.rgb((Color.red(color)*f).toInt().coerceIn(0,255), (Color.green(color)*f).toInt().coerceIn(0,255), (Color.blue(color)*f).toInt().coerceIn(0,255))
     fun box(c: Canvas, x: Float, y: Float, w: Float, h: Float, color: Int, r: Float = 16f) {
         p.shader=null; p.style=Paint.Style.FILL; p.color=color; c.drawRoundRect(x,y,x+w,y+h,r,r,p)
@@ -41,6 +42,14 @@ class Art {
     private val robotSprites=mutableMapOf<Int,Bitmap>()
     fun release() { robotSprites.values.forEach { it.recycle() };robotSprites.clear() }
     fun robot(c:Canvas,x:Float,y:Float,color:Int,size:Float=1f,pose:Float=0f,conductor:Boolean=false) {
+        val index=colors.indexOf(color)
+        if(!conductor && index>=0 && passengerSprites.size==6) {
+            val sprite=passengerSprites[index]
+            val h=52f*size;val w=h*sprite.width/sprite.height
+            p.shader=null;p.colorFilter=null;p.alpha=255;p.isFilterBitmap=true
+            c.drawBitmap(sprite,null,RectF(x-w/2,y-h+9f*size,x+w/2,y+9f*size),p)
+            return
+        }
         if(pose!=0f || conductor) { paintRobot(c,x,y,color,size,pose,conductor);return }
         val sprite=robotSprites.getOrPut(color) {
             Bitmap.createBitmap(120,180,Bitmap.Config.ARGB_8888).also { paintRobot(Canvas(it),60f,120f,color,2f) }

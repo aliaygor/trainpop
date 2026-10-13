@@ -27,7 +27,7 @@ object ConveyorGeometry {
         while(high-low>1) { val middle=(low+high)/2;if(distance[middle]<fraction) low=middle else high=middle }
         val blend=(fraction-distance[low])/(distance[high]-distance[low])
         val angle=PI/2+(low+blend)/samples*PI*2
-        val offset=(lane-1.5f)*12f
+        val offset=(lane-1.5f)*16f
         return FlowPoint(200f+cos(angle).toFloat()*(139f+offset),205f+sin(angle).toFloat()*(86f+offset))
     }
 }
