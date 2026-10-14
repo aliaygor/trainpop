@@ -10,7 +10,16 @@ Open this repository in Android Studio. Android SDK 36 and JDK 17+ are required.
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-## Version 0.9
+## Version 0.10
+
+- Brand package/namespace: `com.axioapps.trainpop`.
+- Automatic empty-platform dispatch and atomic four-wide waiting-row admission.
+- Rendered original railway platform modules, raised depot floor, dimensional conveyor edges, cached static scene and sampled path geometry.
+- Occasional preloaded interstitials after level 10, with a two-minute cooldown and no-ads suppression; live ads use UMP consent gating.
+- Play-supplied one-time offer tokens/prices and pending-payment feedback. Train Pop draft created in Axio Apps; merchant payments profile still blocks product creation. Approved prices in [catalog](docs/PRODUCT-CATALOG.json).
+- 35 passing tests, including 200 solvable levels. See [validation](docs/VALIDATION-0.10.md).
+
+## Previous version 0.9
 
 - Connected queue inlets curve into the crowd loop; a legible boarding station replaces the rail controller.
 - Early levels increase from 8 trains / 3 colors / 1 blocked exit to 24 trains / 6 colors / 13 blocked exits at level 9. Candidate selection preserves a known unassisted solution.

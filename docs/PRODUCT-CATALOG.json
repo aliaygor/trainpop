@@ -1,0 +1,43 @@
+{
+  "application_id": "com.axioapps.trainpop",
+  "approved_by_user_on": "2026-10-14",
+  "currency": "TRY",
+  "status": "Prepared; Play Console products cannot be created before merchant payments profile exists.",
+  "products": [
+    {
+      "id": "coins_500",
+      "title": "500 Altın",
+      "description": "Oyun içi güçlendirmeler için 500 altın.",
+      "try_price": "39.99",
+      "consumable": true
+    },
+    {
+      "id": "coins_3000",
+      "title": "3.000 Altın",
+      "description": "Oyun içi güçlendirmeler için 3.000 altın.",
+      "try_price": "149.99",
+      "consumable": true
+    },
+    {
+      "id": "starter_pack",
+      "title": "Başlangıç Paketi",
+      "description": "1.000 altın, 2 VIP, 2 Düzenle ve 2 Karıştır. Bir kez satın alınabilir.",
+      "try_price": "99.99",
+      "consumable": false
+    },
+    {
+      "id": "remove_ads",
+      "title": "Reklamsız",
+      "description": "Bölüm sonu reklamlarını kalıcı olarak kaldırır. İsteğe bağlı ödül reklamları devam eder.",
+      "try_price": "149.99",
+      "consumable": false
+    },
+    {
+      "id": "ad_free_bundle",
+      "title": "Reklamsız Paket",
+      "description": "Bölüm sonu reklamlarını kaldırır; 1.500 altın, 1 VIP, 1 Düzenle ve 1 Karıştır verir. İsteğe bağlı ödül reklamları devam eder.",
+      "try_price": "249.99",
+      "consumable": false
+    }
+  ]
+}

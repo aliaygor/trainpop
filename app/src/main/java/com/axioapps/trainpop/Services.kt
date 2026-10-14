@@ -1,4 +1,4 @@
-package com.aliaygor.trainpop
+package com.axioapps.trainpop
 
 import android.app.Activity
 import android.content.SharedPreferences
@@ -33,28 +33,29 @@ class Audio(private val activity: Activity) {
 }
 
 /** No ad reward is delivered on dismissal or load failure. Debug always uses Google's test unit. */
-class RewardAds(private val activity:Activity,private val status:(String)->Unit) {
+class RewardAds(private val activity:Activity,private val consent:AdConsent,private val status:(String)->Unit) {
     private var ad:RewardedAd?=null
     private var loading=false
+    private var released=false
     private var pending:(()->Unit)?=null
     private val handler=android.os.Handler(android.os.Looper.getMainLooper())
     val preparing get()=pending!=null
     private val timeout=Runnable { if(pending!=null) { pending=null;showing=false;status("Reklam yüklenemedi. Tekrar deneyebilirsin.") } }
-    fun release() { pending=null;handler.removeCallbacks(timeout) }
+    fun release() { released=true;pending=null;ad=null;handler.removeCallbacks(timeout) }
     var showing=false;private set
     private val unit = if(BuildConfig.DEBUG) "ca-app-pub-3940256099942544/5224354917" else BuildConfig.REWARDED_AD_ID
-    init { if(BuildConfig.DEBUG) MobileAds.initialize(activity) { activity.runOnUiThread { load() } } }
+    init { consent.whenReady { load() } }
     private fun load() {
-        if(unit.isEmpty() || loading || !BuildConfig.DEBUG) return // Release awaits consent configuration.
+        if(released || unit.isEmpty() || loading || !consent.canRequestAds) return
         loading=true
         RewardedAd.load(activity,unit,AdRequest.Builder().build(),object:RewardedAdLoadCallback() {
-            override fun onAdLoaded(value:RewardedAd) { loading=false;ad=value;pending?.let { pending=null;showing=false;handler.removeCallbacks(timeout);show(it) } }
+            override fun onAdLoaded(value:RewardedAd) { loading=false;if(released) return;ad=value;pending?.let { pending=null;showing=false;handler.removeCallbacks(timeout);show(it) } }
             override fun onAdFailedToLoad(error:LoadAdError) { loading=false;ad=null;if(pending!=null) { pending=null;showing=false;handler.removeCallbacks(timeout);status("Reklam yüklenemedi; hakların korunuyor.") } }
         })
     }
     fun show(reward:()->Unit) {
         if(showing) return
-        if(!BuildConfig.DEBUG) { status("Canlı reklamlar henüz etkin değil.");return }
+        if(unit.isEmpty() || !consent.canRequestAds) { status("Reklam bağlantısı henüz hazır değil.");return }
         val current=ad
         if(current==null) { pending=reward;showing=true;handler.removeCallbacks(timeout);handler.postDelayed(timeout,15000);load();return }
         showing=true;ad=null;var granted=false
@@ -87,13 +88,18 @@ class Store(private val activity:Activity,private val economy:Economy,private va
             if(result.responseCode==BillingClient.BillingResponseCode.OK) { synchronized(products) { products.clear();details.productDetailsList.forEach { products[it.productId]=it } } }
         }
     }
-    fun price(id:String):String = synchronized(products) { products[id]?.oneTimePurchaseOfferDetails?.formattedPrice ?: "Yakında" }
+    private fun offer(details:ProductDetails)=details.oneTimePurchaseOfferDetailsList?.firstOrNull() ?: details.oneTimePurchaseOfferDetails
+    fun price(id:String):String = synchronized(products) { products[id]?.let { offer(it)?.formattedPrice } ?: "Yakında" }
     fun available(id:String):Boolean = BuildConfig.BILLING_PUBLIC_KEY.isNotEmpty() && synchronized(products) { products.containsKey(id) }
     fun buy(id:String) {
         if(BuildConfig.BILLING_PUBLIC_KEY.isEmpty()) { status("Satın alma Play Console kurulumu bekliyor.");return }
         val details=synchronized(products) { products[id] }
         if(details==null) { if(client.isReady) query() else connect();status("Ürün şu anda kullanılamıyor.");return }
-        val product=BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(details).build()
+        val selectedOffer=offer(details)
+        if(selectedOffer==null) { status("Bu ürün için satın alma seçeneği bulunamadı.");return }
+        val builder=BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(details)
+        selectedOffer.offerToken?.let { builder.setOfferToken(it) }
+        val product=builder.build()
         val result=client.launchBillingFlow(activity,BillingFlowParams.newBuilder().setProductDetailsParamsList(listOf(product)).build())
         if(result.responseCode!=BillingClient.BillingResponseCode.OK) status("Satın alma başlatılamadı; ücret alınmadı.")
     }
@@ -113,6 +119,7 @@ class Store(private val activity:Activity,private val economy:Economy,private va
         Signature.getInstance("SHA1withRSA").run { initVerify(key);update(p.originalJson.toByteArray(Charsets.UTF_8));verify(Base64.decode(p.signature,Base64.DEFAULT)) }
     } catch(_:Exception) { false }
     private fun handle(p:Purchase) {
+        if(p.purchaseState==Purchase.PurchaseState.PENDING) { status("Ödeme bekleniyor; onaylanınca ürünün eklenecek.");return }
         if(p.purchaseState!=Purchase.PurchaseState.PURCHASED || !verified(p)) return
         val id=p.products.singleOrNull() ?: return
         if(id !in ids) return

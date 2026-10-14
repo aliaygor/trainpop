@@ -1,4 +1,4 @@
-package com.aliaygor.trainpop
+package com.axioapps.trainpop
 import org.junit.Assert.*
 import org.junit.Test
 class GameTest {
@@ -71,7 +71,7 @@ class GameTest {
         val old=g.checkpoint().split('|').take(11).toMutableList();old[0]="v1"
         val restored=Game.restore(old.joinToString("|"))!!
         assertEquals(g.boarded,restored.boarded);assertEquals(g.robots,restored.robots)
-        assertEquals(g.robots.size,restored.passengers.size);assertTrue(restored.checkpoint().startsWith("v4|"))
+        assertEquals(g.robots.size,restored.passengers.size);assertTrue(restored.checkpoint().startsWith("v5|"))
     }
     @Test fun rotationSpeedIsIndependentOfUpdateFrequency() {
         val a=Game(2);val b=Game(2)
@@ -142,5 +142,27 @@ class GameTest {
         assertEquals(g.yard,restored.yard)
         assertEquals(g.robots,restored.robots)
         assertEquals(restored.yard.size,restored.solution.size)
+    }
+    @Test fun waitingRowsEnterFourAtOnceWithoutOvertaking() {
+        val g=Game(20);g.dispatch(g.solution.first())
+        var admissions=0
+        repeat(2500) {
+            val waiting=g.passengers.filter { it.phase<0f }
+            g.update(.02f)
+            val entered=waiting.filter { it.phase>=0f }
+            if(entered.isNotEmpty()) {
+                assertEquals(4,entered.size)
+                assertEquals(waiting.take(4),entered)
+                assertEquals(setOf(0,1,2,3),entered.map { it.lane%4 }.toSet())
+                assertTrue(entered.all { it.phase==entered[0].phase });admissions++
+            }
+        }
+        assertTrue(admissions>0)
+    }
+    @Test fun automaticDispatchContinuesWhenPreviousDockIsOccupied() {
+        val g=Game(3)
+        assertEquals(Result.MOVED,g.dispatch(g.solution[0]))
+        assertEquals(Result.MOVED,g.dispatch(g.solution[1]))
+        assertNotNull(g.platforms[0]);assertNotNull(g.platforms[1])
     }
 }
