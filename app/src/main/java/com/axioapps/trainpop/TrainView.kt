@@ -154,22 +154,24 @@ class TrainView(private val activity:Activity):View(activity) {
         backdrop(c);header(c);logo(c,200f,143f)
         val entries=listOf("starter" to "Başlangıç","ads" to "Reklamsız","shop" to "Mağaza","supply" to "Tedarik","wheel" to "Döndür","daily" to "Günlük Giriş")
         entries.forEachIndexed { i,(kind,name)->
-            if((kind=="starter" && economy.welcomeClaimed) || (kind=="ads" && economy.noAds)) return@forEachIndexed
+            if(kind=="ads" && economy.noAds) return@forEachIndexed
             val x=if(i<3) 49f else 351f;val y=263f+(i%3)*94f
             art.circle(c,x,y+3,38f,0x40203442);art.circle(c,x,y,38f,0xFF24485E.toInt())
             art.circle(c,x,y,32f,0xFF346276.toInt())
             if(kind=="wheel") { val phase=(time%2f/.65f).coerceAtMost(1f);c.save();c.rotate(if(motion) phase*360 else 0f,x,y);art.icon(c,kind,x,y,1.05f);c.restore() } else art.icon(c,kind,x,y,1.05f)
-            art.box(c,x-46,y+26,92f,25f,0x40203442,10f);art.box(c,x-46,y+23,92f,25f,0xFF24485E.toInt(),10f);art.label(c,name,x,y+41,if(name.length>10) 12f else 15f,Color.WHITE)
+            art.box(c,x-46,y+26,92f,25f,0x40203442,10f);art.box(c,x-46,y+23,92f,25f,0xFF24485E.toInt(),10f);art.label(c,if(kind=="starter" && economy.welcomeClaimed) "Alındı ✓" else name,x,y+41,if(name.length>10) 12f else 15f,Color.WHITE)
             val badge=kind=="starter" && !economy.welcomeClaimed || kind=="daily" && economy.dailyAvailable(day()) || kind=="supply" && economy.supplyStep(day())<5 || kind=="wheel" && economy.spins(day())>0
             if(badge) { art.circle(c,x-30,y-27,11f,0xFFFF752C.toInt());art.label(c,"!",x-30,y-22,17f,Color.WHITE,true) }
             hit(x-47,y-40,94f,94f,kind) { open(kind) }
         }
-        val rx=87f+(if(motion) sin(time*.9f)*3 else 0f)
-        mascot(c,rx,613f,122f)
-        hit(rx-61f,521f,122f,182f,"greeting") { welcomeUntil=time+4f;haptic() }
-        val sayings=listOf("Hoş geldiniz!","Haydi, trene binelim!","Robotlar seni bekliyor!")
-        art.box(c,145f,608f,236f,37f,0xEEFFFFFF.toInt(),14f);art.label(c,if(time<welcomeUntil) "Hoş geldiniz!" else sayings[(time/6).toInt()%3],263f,632f,14f)
-        art.box(c,143f,555f,114f,28f,0xE9184665.toInt(),8f);art.label(c,"BÖLÜM ${economy.level}",200f,575f,16f,Color.WHITE)
+        // Feet stay anchored to the front footboard; head, torso and arms remain animated.
+        art.box(c,151f,668f,98f,9f,0xFF173E4A.toInt(),4f)
+        art.gradient(c,151f,663f,98f,9f,0xFFD8C390.toInt(),0xFF9A8052.toInt(),4f)
+        mascot(c,200f,603f,100f)
+        hit(151f,523f,98f,146f,"greeting") { welcomeUntil=time+4f;haptic() }
+        val sayings=listOf("Hoş geldiniz!","Haydi, binelim!","Seni bekliyoruz!")
+        art.box(c,9f,607f,141f,34f,0xEEFFFFFF.toInt(),12f);art.label(c,if(time<welcomeUntil) "Hoş geldiniz!" else sayings[(time/6).toInt()%3],79f,629f,12f)
+        art.box(c,143f,491f,114f,28f,0xE9184665.toInt(),8f);art.label(c,"BÖLÜM ${economy.level}",200f,511f,16f,Color.WHITE)
         button(c,65f,722f,270f,66f,if(game.moves>0 && game.level==economy.level) "Devam Et" else "Oyna",0xFF52E42E.toInt(),"play") { start(false) }
     }
     private fun mascot(c:Canvas,x:Float,y:Float,w:Float) {
@@ -184,8 +186,8 @@ class TrainView(private val activity:Activity):View(activity) {
             art.p.shader=null;art.p.colorFilter=null;art.p.alpha=255;art.p.isFilterBitmap=true
             c.drawBitmap(hostParts[index],null,RectF(-pw/2,0f,pw/2,ph),art.p);c.restore()
         }
-        part(4,-13f,31f,31f,41f,if(motion) sin(age*2f)*1.5f else 0f)
-        part(5,13f,31f,31f,41f,if(motion) -sin(age*2f)*1.5f else 0f)
+        part(4,-13f,31f,31f,41f)
+        part(5,13f,31f,31f,41f)
         // Arms pivot independently around shoulder sockets.
         part(3,23f,-23f+breath,23f,48f,if(motion) -14f+sin(age*2f)*7f else -14f)
         part(2,-23f,-23f+breath,23f,48f,110f*lift+if(motion) sin(age*7f)*19f*lift else 0f)

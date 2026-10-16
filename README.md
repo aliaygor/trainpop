@@ -10,7 +10,11 @@ Open this repository in Android Studio. Android SDK 36 and JDK 17+ are required.
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-## Version 0.13
+## Version 0.14
+
+Home mascot feet are anchored to a front footboard while upper-body gestures remain animated. Claimed welcome gift stays visible. See [validation and purchase restoration notes](docs/VALIDATION-0.14.md).
+
+## Previous version 0.13
 
 Speed choices launch a rewarded ad directly. Daily spin gifts persist separately from shuffle boosters and daily ad limits; legacy day-two claims receive one compensation spin. 39 tests pass. See [validation](docs/VALIDATION-0.13.md). Merchant account setup is deferred by the user; live purchases remain blocked.
 
