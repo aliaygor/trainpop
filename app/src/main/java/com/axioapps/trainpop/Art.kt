@@ -100,10 +100,10 @@ class Art {
                 val wagonY=length/2-17f
                 line(c,0f,engineY+engineHeight/2-3,0f,wagonY-14,0xFF8B98A8.toInt(),4f)
                 p.shader=null;p.alpha=alpha;p.isFilterBitmap=true
-                c.drawBitmap(wagon,null,RectF(-engineWidth/2,wagonY-16,engineWidth/2,wagonY+16),p)
+                c.save();c.rotate(180f,0f,wagonY);c.drawBitmap(wagon,null,RectF(-engineWidth/2,wagonY-16,engineWidth/2,wagonY+16),p);c.restore()
             }
             p.shader=null;p.alpha=alpha;p.isFilterBitmap=true
-            c.drawBitmap(sprite,null,RectF(-engineWidth/2,engineY-engineHeight/2,engineWidth/2,engineY+engineHeight/2),p)
+            c.save();c.rotate(180f,0f,engineY);c.drawBitmap(sprite,null,RectF(-engineWidth/2,engineY-engineHeight/2,engineWidth/2,engineY+engineHeight/2),p);c.restore()
             if(arrow) { c.save();c.translate(0f,engineY);c.scale(.88f,.88f);drawArrow(c);c.restore() }
             p.alpha=255;c.restore();return
         }

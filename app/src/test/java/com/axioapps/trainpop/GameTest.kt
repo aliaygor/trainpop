@@ -116,17 +116,23 @@ class GameTest {
         assertTrue(g.yard.any { it.id==next });assertEquals(Result.MOVED,g.dispatch(next,0))
     }
 
-    @Test fun earlyLevelsIncreaseDensityColorsAndBlockedExits() {
-        var previousBlocked=-1
-        for(level in 1..9) {
-            val g=Game(level)
-            assertEquals("Train count at level $level",8+(level-1)*2,g.yard.size)
-            val colors=g.yard.map { it.color }.toSet().size
-            assertEquals(when {level==1->3;level<4->4;level<7->5;else->6},colors)
-            val blocked=g.yard.count { !g.canExit(it) }
-            println("Level $level: ${g.yard.size} trains, $colors colors, $blocked blocked exits")
-            assertTrue("Blocked exits must rise at level $level",blocked>previousBlocked)
-            previousBlocked=blocked
+    @Test fun difficultyBuildsGraduallyAndSeparatesNewColorsFromDensity() {
+        var previous=Difficulty.forLevel(1)
+        for(level in 1..80) {
+            val d=Difficulty.forLevel(level)
+            assertTrue(d.trains-previous.trains in 0..1)
+            assertTrue(d.colors-previous.colors in 0..1)
+            if(d.colors>previous.colors) assertEquals(previous.trains,d.trains)
+            assertTrue(d.blockedExits-previous.blockedExits<=2)
+            if(level<=8) assertEquals(3,d.colors)
+            previous=d
+        }
+        assertEquals(10,Difficulty.forLevel(9).trains)
+        assertEquals(14,Difficulty.forLevel(20).trains)
+        assertEquals(24,Difficulty.forLevel(49).trains)
+        for(level in listOf(1,4,9,15,23,41)) {
+            val g=Game(level);val d=Difficulty.forLevel(level)
+            assertEquals(d.trains,g.yard.size);assertEquals(d.colors,g.yard.map { it.color }.toSet().size)
         }
     }
     @Test fun savesRetainDemandFromOlderLevelLayouts() {
@@ -164,5 +170,31 @@ class GameTest {
         assertEquals(Result.MOVED,g.dispatch(g.solution[0]))
         assertEquals(Result.MOVED,g.dispatch(g.solution[1]))
         assertNotNull(g.platforms[0]);assertNotNull(g.platforms[1])
+    }
+    @Test fun rewardedFlowSpeedChangesOnlyTheCrowdAndPersistsForThisLevel() {
+        val normal=Game(2);val boosted=Game(2)
+        assertFalse(boosted.activateFlowSpeed(4));assertTrue(boosted.activateFlowSpeed(3))
+        assertFalse(boosted.activateFlowSpeed(2));assertEquals(1,Game(3).flowSpeed)
+        val id=normal.solution.first();normal.dispatch(id);boosted.dispatch(id)
+        val p=normal.passengers.first().phase
+        normal.update(.1f);boosted.update(.1f)
+        assertEquals(normal.platforms[0]!!.progress,boosted.platforms[0]!!.progress,0f)
+        assertEquals(.005f,normal.passengers.first().phase-p,.0001f)
+        assertEquals(.015f,boosted.passengers.first().phase-p,.0001f)
+        val restored=Game.restore(boosted.checkpoint())!!
+        assertEquals(3,restored.flowSpeed);assertEquals(boosted.checkpoint(),restored.checkpoint())
+        val old=normal.checkpoint().split('|').take(12).joinToString("|")
+        assertEquals(1,Game.restore(old)!!.flowSpeed)
+    }
+    @Test fun tripleSpeedKeepsFourWideEntrySpacingAndPassengerDemand() {
+        val g=Game(25);assertTrue(g.activateFlowSpeed(3));g.dispatch(g.solution.first())
+        repeat(1200) {
+            g.update(.02f)
+            assertEquals(g.total,g.boarded+g.robots.size)
+            for(lane in 0..3) {
+                val phases=g.passengers.filter { it.lane%4==lane && it.phase>=0f }.map { it.phase }.sorted()
+                phases.zipWithNext().forEach { (a,b) -> assertTrue(b-a>=.0215f) }
+            }
+        }
     }
 }

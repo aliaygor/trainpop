@@ -30,6 +30,11 @@ class Game(val level: Int) {
     val solution = mutableListOf<Int>()
     var platformCount = 4; private set
     var boarded = 0; private set
+    var flowSpeed = 1; private set
+    fun activateFlowSpeed(multiplier:Int):Boolean {
+        if(multiplier !in 2..3 || multiplier<=flowSpeed || completed) return false
+        flowSpeed=multiplier;return true
+    }
     var elapsed = 0f; private set
     var moves = 0; private set
     var failed = false; private set
@@ -50,11 +55,12 @@ class Game(val level: Int) {
         private set
     private val random = Random(level * 719 + 83)
     init {
-        val count = (8 + (level - 1) * 2).coerceAtMost(24)
-        val colors = when { level == 1 -> 3; level < 4 -> 4; level < 7 -> 5; else -> 6 }
-        // Reverse insertion is always a legal solution. Choose the candidate with
-        // the requested number of blocked exits instead of accepting sparse yards.
-        val target = ((count * (.20f + (level - 1).coerceAtMost(12) * .045f)).toInt()).coerceAtMost(count - 1)
+        val difficulty=Difficulty.forLevel(level)
+        val count=difficulty.trains
+        val colors=difficulty.colors
+        val target=difficulty.blockedExits
+        // Reverse insertion keeps a legal solution; the profile separates new
+        // colors from train-count increases and provides regular lighter boards.
         var best = emptyList<Train>()
         var bestScore = Int.MIN_VALUE
         for(attempt in 0 until 64) {
@@ -149,7 +155,7 @@ class Game(val level: Int) {
         }
         for(lane in 0..3) for(i in circulating[lane].indices) {
             val robot=circulating[lane][i]
-            robot.phase+=dt*laneSpeeds[lane][i]
+            robot.phase+=dt*flowSpeed*laneSpeeds[lane][i]
             if(robot.phase>=1f) {
                 robot.phase-=1f
                 val t=platforms.firstOrNull { it?.phase==TrainPhase.PARKED && it.color==robot.color }
@@ -161,7 +167,7 @@ class Game(val level: Int) {
             }
         }
         passengers.removeAll { it.phase == -2f }
-        feedClock+=dt
+        feedClock+=dt*flowSpeed
         if(feedClock>=.12f && activeCount<=172) {
             feedRow.clear()
             for(robot in passengers) if(robot.phase<0f && feedRow.size<4) feedRow.add(robot)
@@ -225,11 +231,11 @@ class Game(val level: Int) {
     }
     fun checkpoint(): String {
         fun trains(values: List<Train>) = values.joinToString(";") { t -> listOf(t.id,t.x,t.y,t.color,t.direction.ordinal,t.length,t.capacity,t.remaining,t.phase.ordinal,t.progress,t.slot).joinToString(",") }
-        return listOf("v5",level,boarded,moves,platformCount,elapsed,if(failed) 1 else 0,trains(yard),trains(platforms.filterNotNull()),trains(departing),robots.joinToString(","),passengers.joinToString(";") { "${it.color},${it.phase},${it.lane}" }).joinToString("|")
+        return listOf("v5",level,boarded,moves,platformCount,elapsed,if(failed) 1 else 0,trains(yard),trains(platforms.filterNotNull()),trains(departing),robots.joinToString(","),passengers.joinToString(";") { "${it.color},${it.phase},${it.lane}" },flowSpeed).joinToString("|")
     }
     companion object {
         fun restore(checkpoint:String):Game? = try {
-            val parts=checkpoint.split('|');require((parts.size==11 && parts[0]=="v1") || (parts.size==12 && parts[0] in setOf("v2","v3","v4","v5")))
+            val parts=checkpoint.split('|');require((parts.size==11 && parts[0]=="v1") || (parts.size in 12..13 && parts[0] in setOf("v2","v3","v4","v5")))
             val g=Game(parts[1].toInt());g.boarded=parts[2].toInt();g.moves=parts[3].toInt();g.platformCount=parts[4].toInt();g.elapsed=parts[5].toFloat();g.failed=parts[6]=="1"
             require(g.platformCount in 4..7 && g.boarded >= 0)
             fun trains(s:String):List<Train> = if(s.isEmpty()) emptyList() else s.split(';').map { row->val v=row.split(',');require(v.size==11)
@@ -268,6 +274,7 @@ class Game(val level: Int) {
                 }
                 require(g.passengers.groupingBy { it.color }.eachCount()==g.robots.groupingBy { it }.eachCount())
             }
+            if(parts.size==13 && parts[0]=="v5") { g.flowSpeed=parts[12].toInt();require(g.flowSpeed in 1..3) }
             g
         } catch(_:Exception) { null }
     }

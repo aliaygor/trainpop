@@ -10,7 +10,11 @@ Open this repository in Android Studio. Android SDK 36 and JDK 17+ are required.
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-## Version 0.10
+## Version 0.12
+
+Soft sage/cream gameplay scene, matching robot/train sprites and a boarding bridge. Difficulty grows by one train every three levels; new colors arrive at levels 9, 23 and 41. Rewarded 2×/3× crowd flow and price-first purchase buttons are included. 37 tests pass, including 200 solvable levels. See [validation](docs/VALIDATION-0.12.md).
+
+## Previous version 0.10
 
 - Brand package/namespace: `com.axioapps.trainpop`.
 - Automatic empty-platform dispatch and atomic four-wide waiting-row admission.

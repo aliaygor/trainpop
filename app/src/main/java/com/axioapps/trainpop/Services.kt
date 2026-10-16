@@ -89,7 +89,8 @@ class Store(private val activity:Activity,private val economy:Economy,private va
         }
     }
     private fun offer(details:ProductDetails)=details.oneTimePurchaseOfferDetailsList?.firstOrNull() ?: details.oneTimePurchaseOfferDetails
-    fun price(id:String):String = synchronized(products) { products[id]?.let { offer(it)?.formattedPrice } ?: "Yakında" }
+    private val plannedPrices=mapOf("coins_500" to "₺39,99", "coins_3000" to "₺149,99", "starter_pack" to "₺99,99", "remove_ads" to "₺149,99", "ad_free_bundle" to "₺249,99")
+    fun price(id:String):String = synchronized(products) { products[id]?.let { offer(it)?.formattedPrice } ?: plannedPrices[id] ?: "Yakında" }
     fun available(id:String):Boolean = BuildConfig.BILLING_PUBLIC_KEY.isNotEmpty() && synchronized(products) { products.containsKey(id) }
     fun buy(id:String) {
         if(BuildConfig.BILLING_PUBLIC_KEY.isEmpty()) { status("Satın alma Play Console kurulumu bekliyor.");return }
