@@ -5,13 +5,13 @@ interface Ledger {
     fun string(key: String, default: String = ""): String
     fun write(ints: Map<String, Int> = emptyMap(), strings: Map<String, String> = emptyMap())
 }
-data class Reward(val coins: Int = 0, val vip: Int = 0, val arrange: Int = 0, val shuffle: Int = 0) {
+data class Reward(val coins: Int = 0, val vip: Int = 0, val arrange: Int = 0, val shuffle: Int = 0, val spins: Int = 0) {
     fun label(): String = buildList {
-        if (coins > 0) add("$coins altın"); if (vip > 0) add("$vip VIP"); if (arrange > 0) add("$arrange Düzenle"); if (shuffle > 0) add("$shuffle Karıştır")
+        if (spins > 0) add("$spins çevirme hakkı"); if (coins > 0) add("$coins altın"); if (vip > 0) add("$vip VIP"); if (arrange > 0) add("$arrange Düzenle"); if (shuffle > 0) add("$shuffle Karıştır")
     }.joinToString(" + ")
 }
 class Economy(private val store: Ledger) {
-    val dailyRewards = listOf(Reward(50), Reward(shuffle = 1), Reward(80), Reward(vip = 1), Reward(150), Reward(arrange = 1), Reward(400, arrange = 1))
+    val dailyRewards = listOf(Reward(50), Reward(spins = 1), Reward(80), Reward(vip = 1), Reward(150), Reward(arrange = 1), Reward(400, arrange = 1))
     val wheelRewards = listOf(Reward(150), Reward(shuffle = 1), Reward(30), Reward(vip = 1), Reward(500), Reward(arrange = 1))
     val coins get() = store.int("coins", 200)
     val welcomeClaimed get() = store.int("welcome.claimed") == 1
@@ -33,8 +33,15 @@ class Economy(private val store: Ledger) {
     fun dailyAvailable(day: String) = store.string("daily.date") != day
     fun dailyIndex() = store.int("daily.index") % 7
     fun supplyStep(day: String) = if (store.string("supply.date") == day) store.int("supply.step") else 0
-    fun spins(day: String) = if (store.string("wheel.date") == day) store.int("wheel.spins", 1) else 1
-    private fun amounts(r: Reward) = mapOf("coins" to coins + r.coins, "vip" to inventory("vip") + r.vip, "arrange" to inventory("arrange") + r.arrange, "shuffle" to inventory("shuffle") + r.shuffle)
+    private fun dailySpins(day: String) = if (store.string("wheel.date") == day) store.int("wheel.spins", 1) else 1
+    fun spins(day: String) = dailySpins(day) + store.int("wheel.bonus")
+    fun repairLegacyDailySpin(): Boolean {
+        if (store.int("daily.spinMigration") == 1) return false
+        val eligible = store.int("daily.index") >= 2
+        store.write(mapOf("daily.spinMigration" to 1, "wheel.bonus" to store.int("wheel.bonus") + if(eligible) 1 else 0))
+        return eligible
+    }
+    private fun amounts(r: Reward) = mapOf("coins" to coins + r.coins, "vip" to inventory("vip") + r.vip, "arrange" to inventory("arrange") + r.arrange, "shuffle" to inventory("shuffle") + r.shuffle, "wheel.bonus" to store.int("wheel.bonus") + r.spins)
     fun claimDaily(day: String): Reward? {
         if (!dailyAvailable(day)) return null
         val r = dailyRewards[dailyIndex()]
@@ -54,7 +61,7 @@ class Economy(private val store: Ledger) {
     fun grantSpin(day: String): Boolean {
         val used = if (store.string("wheel.date") == day) store.int("wheel.adCount") else 0
         if (used >= 9) return false
-        store.write(mapOf("wheel.spins" to spins(day) + 1, "wheel.adCount" to used + 1), mapOf("wheel.date" to day)); return true
+        store.write(mapOf("wheel.spins" to dailySpins(day) + 1, "wheel.adCount" to used + 1), mapOf("wheel.date" to day)); return true
     }
     fun adSpinsLeft(day: String) = 9 - if (store.string("wheel.date") == day) store.int("wheel.adCount") else 0
     val noAds get() = store.int("noAds") == 1
@@ -75,7 +82,8 @@ class Economy(private val store: Ledger) {
     fun beginSpin(day: String, index: Int): Boolean {
         if (index !in wheelRewards.indices || spins(day) <= 0 || store.int("wheel.pending", -1) >= 0) return false
         val ads = if(store.string("wheel.date") == day) store.int("wheel.adCount") else 0
-        store.write(mapOf("wheel.spins" to spins(day) - 1, "wheel.pending" to index, "wheel.adCount" to ads), mapOf("wheel.date" to day)); return true
+        val bonus = store.int("wheel.bonus")
+        store.write(mapOf("wheel.spins" to dailySpins(day) - if(bonus>0) 0 else 1, "wheel.bonus" to (bonus-1).coerceAtLeast(0), "wheel.pending" to index, "wheel.adCount" to ads), mapOf("wheel.date" to day)); return true
     }
     fun finishSpin(): Reward? {
         val index = store.int("wheel.pending", -1)

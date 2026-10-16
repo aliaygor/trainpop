@@ -8,6 +8,19 @@ private class MemoryLedger:Ledger {
     override fun write(ints:Map<String,Int>,strings:Map<String,String>) { this.ints.putAll(ints);this.strings.putAll(strings) }
 }
 class EconomyTest {
+    @Test fun dailySpinIsPersistentSeparateFromShuffleAndAdAllowance() {
+        val l=MemoryLedger();val e=Economy(l);e.repairLegacyDailySpin()
+        e.claimDaily("a");val shuffle=e.inventory("shuffle")
+        assertEquals(1,e.claimDaily("b")!!.spins);assertEquals(shuffle,e.inventory("shuffle"));assertEquals(2,e.spins("b"))
+        val restored=Economy(l);assertEquals(2,restored.spins("c"));assertEquals(9,restored.adSpinsLeft("c"))
+        assertTrue(restored.grantSpin("c"));assertEquals(3,restored.spins("c"))
+        assertTrue(restored.beginSpin("c",0));restored.finishSpin();assertEquals(2,restored.spins("c"));assertEquals(1,restored.spins("d"))
+    }
+    @Test fun legacyDailySpinCompensationOnlyOnce() {
+        val l=MemoryLedger();l.ints["daily.index"]=2;val e=Economy(l)
+        assertTrue(e.repairLegacyDailySpin());assertFalse(Economy(l).repairLegacyDailySpin());assertEquals(2,e.spins("a"))
+    }
+
     @Test fun dailyIsOncePerDayAndCyclesSevenRewards() { val e=Economy(MemoryLedger());repeat(14) { n->val day="day$n";assertEquals(e.dailyRewards[n%7],e.claimDaily(day));assertNull(e.claimDaily(day)) };assertEquals(0,e.dailyIndex()) }
     @Test fun supplyEnforcesOrderAndResetsNextDay() {
         val e=Economy(MemoryLedger());assertNull(e.claimSupplyAd("a",1));assertEquals(15,e.claimSupply("a")!!.coins);assertNull(e.claimSupply("a"));assertNull(e.claimSupplyAd("a",3))

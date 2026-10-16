@@ -68,6 +68,7 @@ class TrainView(private val activity:Activity):View(activity) {
     private val hits=mutableListOf<Hit>()
     init {
         isFocusable=true;contentDescription="Train Pop"
+        if(economy.repairLegacyDailySpin()) notice("Günlük hediyenden +1 çevirme hakkı çarka eklendi.")
         economy.finishSpin()?.let { reward=it;rewardReturn="wheel";modal="reward" }
         audio.effects=effects
         art.trainSprites=trainSprites;art.wagonSprites=wagonSprites;art.directionalPassengers=robotSprites.chunked(6);art.menuSprites=mapOf("starter" to menuSprites[0],"coin" to menuSprites[0],"ads" to menuSprites[1],"shop" to menuSprites[2],"supply" to menuSprites[3],"wheel" to menuSprites[4],"daily" to menuSprites[5])
@@ -420,7 +421,7 @@ class TrainView(private val activity:Activity):View(activity) {
         }
     }
     private fun rewardArt(c:Canvas,r:Reward,x:Float,y:Float) {
-        val kind=if(r.coins>0) "coin" else if(r.vip>0) "vip" else if(r.arrange>0) "arrange" else "shuffle"
+        val kind=if(r.coins>0) "coin" else if(r.vip>0) "vip" else if(r.arrange>0) "arrange" else if(r.spins>0) "wheel" else "shuffle"
         art.icon(c,kind,x,y,1.6f)
     }
     private fun daily(c:Canvas,y:Float) {
@@ -429,7 +430,7 @@ class TrainView(private val activity:Activity):View(activity) {
             art.gradient(c,x,yy,w,h,if(i==displayIndex) 0xFFFFD15A.toInt() else 0xFFEFE7CB.toInt(),0xFFFFF9E3.toInt(),12f)
             art.label(c,"Gün ${i+1}",x+w/2,yy+24,17f)
             val claimed=if(available) i<idx else i<=displayIndex
-            if(claimed) art.label(c,"✓",x+w/2,yy+79,39f,art.colors[4]) else { art.icon(c,if(r.coins>0) "coin" else if(r.vip>0) "vip" else if(r.arrange>0) "arrange" else "shuffle",x+w/2,yy+61,.78f);art.label(c,if(r.coins>0) "${r.coins}" else "×1",x+w/2,yy+106,18f) }
+            if(claimed) art.label(c,"✓",x+w/2,yy+79,39f,art.colors[4]) else { art.icon(c,if(r.coins>0) "coin" else if(r.vip>0) "vip" else if(r.arrange>0) "arrange" else if(r.spins>0) "wheel" else "shuffle",x+w/2,yy+61,.78f);art.label(c,if(r.coins>0) "${r.coins}" else if(r.spins>0) "+1 Çevirme" else "×1",x+w/2,yy+106,18f) }
             if(i==6 && !claimed) { art.caption(c,"+1 Düzenle",x+w/2+95,yy+72,13f) }
         }
         button(c,72f,y+503,256f,51f,if(available) "Ödülü Al" else "Alındı",enabled=available) { showReward(economy.claimDaily(day())) }
@@ -518,18 +519,18 @@ class TrainView(private val activity:Activity):View(activity) {
         art.caption(c,"Her gün 1 ücretsiz hak • Ödüller eşit şanslı",200f,650f,11f,Color.WHITE)
     }
     private fun speedOffer(c:Canvas,y:Float) {
-        art.caption(c,"Robotları daha hızlı dolaştır",200f,y+102,19f)
+        art.caption(c,"Reklamı tamamla, akışı hızlandır",200f,y+102,18f)
         for(multiplier in 2..3) {
             val x=if(multiplier==2) 48f else 209f
-            button(c,x,y+133,142f,70f,"${multiplier}× Hız",if(selectedSpeed==multiplier) 0xFFD9AD4B.toInt() else 0xFF73949F.toInt(),"speed$multiplier") { selectedSpeed=multiplier }
+            val enabled=multiplier>game.flowSpeed && !ads.showing
+            button(c,x,y+145,142f,82f,if(multiplier==game.flowSpeed) "${multiplier}× Etkin" else "▶ ${multiplier}× Hız",if(enabled) 0xFF739F8D.toInt() else 0xFFACBBB4.toInt(),"speed$multiplier",enabled=enabled) {
+                val target=game
+                ads.show { if(game===target && target.activateFlowSpeed(multiplier)) { prefs.edit().putString("session",target.checkpoint()).commit();modal="";notice("${multiplier}× robot akışı bu bölüm için etkin!") } }
+            }
         }
-        art.caption(c,"Seçtiğin hız bu bölüm boyunca geçerli.",200f,y+245,14f)
-        art.caption(c,"Yeni bölümde normal hıza döner.",200f,y+272,13f)
-        val enabled=selectedSpeed>game.flowSpeed
-        button(c,48f,y+331,304f,51f,if(enabled) "Reklam izle · ${selectedSpeed}× hız" else "${game.flowSpeed}× hız zaten etkin",enabled=enabled) {
-            val requested=selectedSpeed
-            ads.show { if(game.activateFlowSpeed(requested)) { prefs.edit().putString("session",game.checkpoint()).commit();modal="";notice("${requested}× robot akışı bu bölüm için etkin!") } }
-        }
+        art.caption(c,"Hızı seçtiğinde ödüllü reklam açılır.",200f,y+275,14f)
+        art.caption(c,"Reklam bitince bu bölüm boyunca etkinleşir.",200f,y+304,13f)
+        art.caption(c,"Yeni bölümde normal hıza döner.",200f,y+333,13f)
     }
     private fun booster(c:Canvas,y:Float) {
         val key=selectedBooster;art.icon(c,key,200f,y+137,1.8f)
